@@ -1,0 +1,4 @@
+/vendor/
+.env
+uploads/avatars/*
+!uploads/avatars/.gitkeep
