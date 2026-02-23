@@ -9,6 +9,8 @@ startSession();
 
 $message = null;
 $error = null;
+$clanMessages = [];
+$lastMatch = $_SESSION['last_match'] ?? null;
 
 if (isset($_POST['action'])) {
     try {
@@ -44,6 +46,7 @@ if (isset($_POST['action'])) {
 
             case 'logout':
                 logout();
+                unset($_SESSION['last_match']);
                 $message = 'Wylogowano.';
                 break;
 
@@ -118,11 +121,30 @@ if (isset($_POST['action'])) {
                 $message = 'Avatar został zaktualizowany.';
                 break;
 
-            case 'debug_gain_xp':
+            case 'find_clan_match':
                 $player = currentPlayer();
-                if ($player) {
-                    grantXp(db(), (int) $player['id'], 250);
-                    $message = 'Dodano 250 exp (przycisk testowy).';
+                if (!$player) {
+                    $error = 'Musisz się zalogować.';
+                    break;
+                }
+
+                if ((int) $player['fatigue'] >= MAX_FATIGUE) {
+                    $minutes = fatigueMinutesToRecoverOne($player);
+                    $error = 'Jesteś zbyt zmęczony. Poczekaj ' . $minutes . ' minut.';
+                    break;
+                }
+
+                $match = simulateClanMatch($player);
+                $clanMessages = applyMatchResult(db(), $player, $match);
+                $_SESSION['last_match'] = $match;
+                $lastMatch = $match;
+
+                if ($match['result'] === 'win') {
+                    $message = 'Wygrana! +' . $match['xp'] . ' EXP.';
+                } elseif ($match['result'] === 'draw') {
+                    $message = 'Remis! +' . $match['xp'] . ' EXP.';
+                } else {
+                    $message = 'Przegrana. Brak EXP.';
                 }
                 break;
         }
@@ -133,6 +155,7 @@ if (isset($_POST['action'])) {
 
 $player = currentPlayer();
 $statsInfo = statDescriptions();
+$mapProgress = $player ? getMapProgress(db(), (int) $player['id'], (string) $player['rank_tier']) : [];
 
 function e(string $v): string
 {
@@ -153,7 +176,7 @@ function e(string $v): string
         <div>
             <h1>Gra przeglądarkowa (baza)</h1>
             <?php if ($player): ?>
-                <p>Nick: <strong><?= e($player['nick']) ?></strong></p>
+                <p>Nick: <strong><?= e($player['nick']) ?></strong> · Ranga: <strong><?= e(rankName((string) $player['rank_tier'])) ?></strong></p>
                 <div class="xp-wrap">
                     <?php $progress = levelProgressPercent((int) $player['level'], (int) $player['xp']); ?>
                     <div class="xp-label">Poziom <?= (int) $player['level'] ?> · EXP <?= (int) $player['xp'] ?>/<?= xpRequiredForLevel((int) $player['level']) ?></div>
@@ -166,6 +189,7 @@ function e(string $v): string
         <?php if ($player): ?>
             <div class="resources">
                 <div>Kasa: <strong><?= (int) $player['money'] ?>$</strong></div>
+                <div>Zmęczenie: <strong><?= (int) $player['fatigue'] ?>/<?= MAX_FATIGUE ?></strong></div>
                 <div>Punkty rozwoju: <strong><?= availableDevelopmentPoints($player) ?></strong></div>
                 <form method="post">
                     <input type="hidden" name="action" value="logout">
@@ -177,6 +201,9 @@ function e(string $v): string
 
     <?php if ($message): ?><p class="msg ok"><?= e($message) ?></p><?php endif; ?>
     <?php if ($error): ?><p class="msg err"><?= e($error) ?></p><?php endif; ?>
+    <?php foreach ($clanMessages as $clanMessage): ?>
+        <p class="msg ok"><?= e($clanMessage) ?></p>
+    <?php endforeach; ?>
 
     <?php if (!$player): ?>
         <main class="auth-grid">
@@ -205,15 +232,12 @@ function e(string $v): string
                 <h3>Menu gry</h3>
                 <ul>
                     <li>Podgląd gracza</li>
+                    <li><strong>KLANÓWKI</strong></li>
                     <li>Mecze (wkrótce)</li>
                     <li>Pojedynki (wkrótce)</li>
                     <li>Skrzynie (wkrótce)</li>
                     <li>Sklep (wkrótce)</li>
                 </ul>
-                <form method="post" class="debug-form">
-                    <input type="hidden" name="action" value="debug_gain_xp">
-                    <button type="submit">+250 EXP (test)</button>
-                </form>
             </aside>
 
             <section class="game-content">
@@ -254,9 +278,76 @@ function e(string $v): string
                         <?php endforeach; ?>
                     </div>
                 </div>
+
+                <section class="clan-section">
+                    <h2>KLANÓWKI</h2>
+                    <p>Wygraj przynajmniej 1 mecz na każdej mapie aktualnej rangi, aby awansować wyżej.</p>
+                    <?php
+                    $fatigue = (int) $player['fatigue'];
+                    $isLocked = $fatigue >= MAX_FATIGUE;
+                    ?>
+                    <form method="post" class="match-form">
+                        <input type="hidden" name="action" value="find_clan_match">
+                        <button type="submit" <?= $isLocked ? 'disabled' : '' ?>>Szukaj meczu</button>
+                    </form>
+
+                    <?php if ($isLocked): ?>
+                        <p class="fatigue-note">Jesteś zbyt zmęczony. Poczekaj <?= fatigueMinutesToRecoverOne($player) ?> minut.</p>
+                    <?php endif; ?>
+
+                    <div class="maps-grid">
+                        <?php foreach ($mapProgress as $mapItem): ?>
+                            <div class="map-tile <?= $mapItem['won'] ? 'won' : 'lost' ?>">
+                                <span><?= e($mapItem['map']) ?></span>
+                                <small><?= $mapItem['won'] ? 'zielona' : 'czerwona' ?></small>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php if ($lastMatch): ?>
+                        <div class="match-result" id="matchResult" data-rounds='<?= e(json_encode($lastMatch['rounds'], JSON_UNESCAPED_UNICODE)) ?>'>
+                            <h3>Ostatni mecz: <?= e($lastMatch['map']) ?></h3>
+                            <p>Power: Ty <?= (int) $lastMatch['player_power'] ?> vs Oponent <?= (int) $lastMatch['opp_power'] ?> · Szansa rundy: <?= number_format((float) $lastMatch['round_win_prob'] * 100, 1) ?>%</p>
+                            <div class="sim-score" id="simScore">0 : 0</div>
+                            <div class="sim-round" id="simRound">Start symulacji...</div>
+                            <p>Końcowy wynik: <strong><?= (int) $lastMatch['player_score'] ?> : <?= (int) $lastMatch['opp_score'] ?></strong>
+                                (<?= e($lastMatch['result'] === 'win' ? 'Wygrana' : ($lastMatch['result'] === 'draw' ? 'Remis' : 'Przegrana')) ?>)
+                            </p>
+                        </div>
+                    <?php endif; ?>
+                </section>
             </section>
         </main>
     <?php endif; ?>
 </div>
+
+<script>
+(() => {
+  const box = document.getElementById('matchResult');
+  if (!box) return;
+
+  const rounds = JSON.parse(box.dataset.rounds || '[]');
+  const scoreEl = document.getElementById('simScore');
+  const roundEl = document.getElementById('simRound');
+  if (!rounds.length || !scoreEl || !roundEl) return;
+
+  let i = 0;
+  const stepMs = Math.max(250, Math.floor(10000 / rounds.length));
+  const timer = setInterval(() => {
+    const r = rounds[i];
+    scoreEl.textContent = `${r.player_score} : ${r.opp_score}`;
+    roundEl.textContent = `Runda ${r.round} - ${r.winner === 'player' ? 'Punkt dla Ciebie' : 'Punkt dla oponenta'}`;
+    if (r.swap) {
+      roundEl.textContent += ' · Zmiana stron!';
+    }
+
+    i += 1;
+    if (i >= rounds.length) {
+      clearInterval(timer);
+      roundEl.textContent = 'Mecz zakończony.';
+    }
+  }, stepMs);
+})();
+</script>
 </body>
 </html>

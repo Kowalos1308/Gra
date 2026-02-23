@@ -20,7 +20,10 @@ function currentPlayer(): ?array
         return null;
     }
 
-    $stmt = db()->prepare('SELECT * FROM players WHERE id = :id');
+    $pdo = db();
+    refreshFatigue($pdo, (int) $_SESSION['player_id']);
+
+    $stmt = $pdo->prepare('SELECT * FROM players WHERE id = :id');
     $stmt->execute(['id' => $_SESSION['player_id']]);
 
     $player = $stmt->fetch();
