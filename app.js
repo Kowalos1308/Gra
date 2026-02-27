@@ -63,6 +63,26 @@ const DEVICES = [
 
 const API_URL = new URL('api.php', window.location.href);
 
+const ACTIVE_USER_COOKIE = 'activeVapeUser';
+const ACTIVE_USER_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+
+function setCookie(name, value, maxAgeSeconds) {
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; SameSite=Lax`;
+}
+
+function getCookie(name) {
+  const key = `${encodeURIComponent(name)}=`;
+  const parts = document.cookie.split(';').map((part) => part.trim());
+  const matched = parts.find((part) => part.startsWith(key));
+  if (!matched) return '';
+  return decodeURIComponent(matched.slice(key.length));
+}
+
+function clearCookie(name) {
+  document.cookie = `${encodeURIComponent(name)}=; max-age=0; path=/; SameSite=Lax`;
+}
+
+
 function makeApiUrl(action) {
   const url = new URL(API_URL);
   url.searchParams.set('action', action);
@@ -166,6 +186,7 @@ async function renderOrderingPage() {
   const orders = data.orders;
   let activeUser = null;
   let pendingUser = null;
+  const rememberedUser = getCookie(ACTIVE_USER_COOKIE);
 
   function refreshUserButtons() {
     userPicker.querySelectorAll('button').forEach((btn) => {
@@ -260,6 +281,7 @@ async function renderOrderingPage() {
       const expectedUser = users.find((user) => user.name === pendingUser);
       if (expectedUser && modalInput.value === expectedUser.password) {
         activeUser = pendingUser;
+        setCookie(ACTIVE_USER_COOKIE, activeUser, ACTIVE_USER_COOKIE_MAX_AGE_SECONDS);
         closePasswordModal();
         refreshUserButtons();
         renderDeviceCounts();
@@ -280,6 +302,15 @@ async function renderOrderingPage() {
     modal.addEventListener('click', (event) => {
       if (event.target === modal) closePasswordModal();
     });
+  }
+
+  if (rememberedUser) {
+    const isRememberedUserValid = users.some((user) => user.name === rememberedUser);
+    if (isRememberedUserValid) {
+      activeUser = rememberedUser;
+    } else {
+      clearCookie(ACTIVE_USER_COOKIE);
+    }
   }
 
   if (adminForm && adminPassword && adminMessage) {
