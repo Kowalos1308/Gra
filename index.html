@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zamówienia Vape</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <p class="kicker">Szybkie zamówienia</p>
+      <h1>Wybierz użytkownika i naklikaj vape</h1>
+      <p class="subtitle">Każdy kafelek to 1 urządzenie. Dotknij kafelka, aby zwiększyć ilość.</p>
+    </header>
+
+    <section class="panel">
+      <h2>Wybierz użytkownika</h2>
+      <div id="userPicker" class="user-picker" aria-label="Wybór użytkownika"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <h2>Wybierz vape</h2>
+        <span id="activeUserLabel" class="active-user">Najpierw wybierz użytkownika</span>
+      </div>
+      <div id="flavorGrid" class="flavor-grid"></div>
+    </section>
+
+    <section class="panel admin-gate">
+      <h2>Podgląd tabeli zamówień</h2>
+      <p class="subtitle">Wpisz hasło, aby przejść dalej.</p>
+      <form id="adminAccessForm" class="admin-access-form">
+        <input id="adminPassword" type="password" placeholder="Hasło" autocomplete="off" />
+        <button type="submit" class="user-btn">Wejdź</button>
+      </form>
+      <p id="adminAccessMessage" class="access-message" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <div id="userPasswordModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="userPasswordTitle">
+    <div class="modal-card">
+      <h3 id="userPasswordTitle">Wprowadź hasło</h3>
+      <p id="userPasswordSubtitle" class="subtitle"></p>
+      <form id="userPasswordForm" class="modal-form">
+        <input id="userPasswordInput" type="password" placeholder="Hasło użytkownika" autocomplete="off" />
+        <div class="modal-actions">
+          <button type="submit" class="user-btn">Potwierdź</button>
+          <button id="userPasswordCancel" type="button" class="user-btn">Anuluj</button>
+        </div>
+      </form>
+      <p id="userPasswordMessage" class="access-message" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
