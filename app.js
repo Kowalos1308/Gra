@@ -89,6 +89,14 @@ function makeApiUrl(action) {
   return url.toString();
 }
 
+function extractFlavorSegments(flavorText) {
+  return flavorText
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 function showFatalError(message) {
   const panels = document.querySelectorAll('.panel');
   if (!panels.length) return;
@@ -235,8 +243,18 @@ async function renderOrderingPage() {
     image.className = 'flavor-image';
     image.style.backgroundImage = `url('${device.image}')`;
 
-    const title = document.createElement('h3');
-    title.textContent = device.pl;
+    const segmentLayer = document.createElement('div');
+    segmentLayer.className = 'flavor-segments';
+
+    const segments = extractFlavorSegments(device.pl);
+    segments.forEach((segmentText) => {
+      const segment = document.createElement('div');
+      segment.className = 'flavor-segment';
+      segment.textContent = segmentText;
+      segmentLayer.appendChild(segment);
+    });
+
+    image.appendChild(segmentLayer);
 
     const controls = document.createElement('div');
     controls.className = 'controls';
@@ -269,7 +287,7 @@ async function renderOrderingPage() {
       await saveOrders(orders);
     });
 
-    card.append(image, title, controls);
+    card.append(image, controls);
     flavorGrid.appendChild(card);
   });
 
