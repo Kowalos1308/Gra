@@ -287,3 +287,49 @@ tbody tr:nth-child(even) th.sticky-col {
   font-size: 0.8rem;
   line-height: 1.45;
 }
+
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 20, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: min(420px, 100%);
+  background: #0b1326;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+}
+
+.modal-card h3 {
+  margin: 0;
+}
+
+.modal-form {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.modal-form input {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.55rem;
+  background: #070f22;
+  color: var(--text);
+  padding: 0.56rem 0.7rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.45rem;
+}

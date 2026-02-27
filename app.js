@@ -1,7 +1,13 @@
 const USERS = ["Klaudia", "Damian", "Wera"];
 
+const USER_PASSWORDS = {
+  Klaudia: "123",
+  Damian: "213",
+  Wera: "321"
+};
+
 function stockImageUrl(query) {
-  return `https://source.unsplash.com/600x600/?${encodeURIComponent(query)}`;
+  return `https://loremflickr.com/600/600/${encodeURIComponent(query)}`;
 }
 
 const DEVICES = [
@@ -10,9 +16,9 @@ const DEVICES = [
     summaryEn: "Watermelon Ice/ Strawberry Red Bull/Strawberry Kiwi",
     pl: "Arbuz Ice / Truskawka Red Bull / Truskawka Kiwi",
     imageParts: [
-      [stockImageUrl("watermelon fruit"), stockImageUrl("ice cubes")],
-      [stockImageUrl("strawberry fruit"), stockImageUrl("energy drink can")],
-      [stockImageUrl("strawberry fruit"), stockImageUrl("kiwi fruit")]
+      [stockImageUrl("watermelon"), stockImageUrl("ice")],
+      [stockImageUrl("strawberry"), stockImageUrl("energy-drink")],
+      [stockImageUrl("strawberry"), stockImageUrl("kiwi")]
     ]
   },
   {
@@ -20,9 +26,9 @@ const DEVICES = [
     summaryEn: "Strawberry Watermelon/Bluberry On Ice/Kiwi Lemon",
     pl: "Truskawka Arbuz / Borówka Ice / Kiwi Cytryna",
     imageParts: [
-      [stockImageUrl("strawberry fruit"), stockImageUrl("watermelon fruit")],
-      [stockImageUrl("blueberry fruit"), stockImageUrl("ice cubes")],
-      [stockImageUrl("kiwi fruit"), stockImageUrl("lemon fruit")]
+      [stockImageUrl("strawberry"), stockImageUrl("watermelon")],
+      [stockImageUrl("blueberry"), stockImageUrl("ice")],
+      [stockImageUrl("kiwi"), stockImageUrl("lemon")]
     ]
   },
   {
@@ -30,9 +36,9 @@ const DEVICES = [
     summaryEn: "Mixed Berries/Peach Apple Ice/Lady Killer",
     pl: "Leśne Owoce / Brzoskwinia Jabłko Ice / Lady Killer",
     imageParts: [
-      [stockImageUrl("berries mix"), stockImageUrl("berries closeup")],
-      [stockImageUrl("peach fruit"), stockImageUrl("apple with ice")],
-      [stockImageUrl("cocktail drink"), stockImageUrl("tropical cocktail")]
+      [stockImageUrl("berries"), stockImageUrl("berries")],
+      [stockImageUrl("peach"), stockImageUrl("apple-ice")],
+      [stockImageUrl("cocktail"), stockImageUrl("tropical-drink")]
     ]
   },
   {
@@ -40,9 +46,9 @@ const DEVICES = [
     summaryEn: "Mango Ice/Banana Ice/Blue Razz Lemoniade",
     pl: "Mango Ice / Banan Ice / Niebieska Malina Lemoniada",
     imageParts: [
-      [stockImageUrl("mango fruit"), stockImageUrl("ice cubes")],
-      [stockImageUrl("banana fruit"), stockImageUrl("ice cubes macro")],
-      [stockImageUrl("blue raspberry candy"), stockImageUrl("lemonade drink")]
+      [stockImageUrl("mango"), stockImageUrl("ice")],
+      [stockImageUrl("banana"), stockImageUrl("ice")],
+      [stockImageUrl("blue-candy"), stockImageUrl("lemonade")]
     ]
   },
   {
@@ -50,9 +56,9 @@ const DEVICES = [
     summaryEn: "Peach Mango Pineapple/Strawberry Raspberry Ice/Triple Mango",
     pl: "Brzoskwinia Mango Ananas / Truskawka Malina Ice / Potrójne Mango",
     imageParts: [
-      [stockImageUrl("peach fruit"), stockImageUrl("mango pineapple")],
-      [stockImageUrl("strawberry fruit"), stockImageUrl("raspberry with ice")],
-      [stockImageUrl("mango slices"), stockImageUrl("mango fruit pile")]
+      [stockImageUrl("peach"), stockImageUrl("mango-pineapple")],
+      [stockImageUrl("strawberry"), stockImageUrl("raspberry-ice")],
+      [stockImageUrl("mango"), stockImageUrl("mango")]
     ]
   },
   {
@@ -60,9 +66,9 @@ const DEVICES = [
     summaryEn: "Strawberry Grape/Peach Mango/Ice Pop",
     pl: "Truskawka Winogrono / Brzoskwinia Mango / Ice Pop",
     imageParts: [
-      [stockImageUrl("strawberry fruit"), stockImageUrl("grapes fruit")],
-      [stockImageUrl("peach fruit"), stockImageUrl("mango fruit")],
-      [stockImageUrl("ice pop"), stockImageUrl("popsicle")]
+      [stockImageUrl("strawberry"), stockImageUrl("grape")],
+      [stockImageUrl("peach"), stockImageUrl("mango")],
+      [stockImageUrl("ice-pop"), stockImageUrl("popsicle")]
     ]
   },
   {
@@ -70,9 +76,9 @@ const DEVICES = [
     summaryEn: "Strawberry Ice/Sour Apple/Bluberry Raspberry",
     pl: "Truskawka Ice / Kwaśne Jabłko / Borówka Malina",
     imageParts: [
-      [stockImageUrl("strawberry fruit"), stockImageUrl("ice cubes")],
-      [stockImageUrl("green apple"), stockImageUrl("sour candy")],
-      [stockImageUrl("blueberry fruit"), stockImageUrl("raspberry fruit")]
+      [stockImageUrl("strawberry"), stockImageUrl("ice")],
+      [stockImageUrl("green-apple"), stockImageUrl("sour-candy")],
+      [stockImageUrl("blueberry"), stockImageUrl("raspberry")]
     ]
   },
   {
@@ -80,9 +86,9 @@ const DEVICES = [
     summaryEn: "Grape Ice/Cherry Ice/Blue Sour Raspberry",
     pl: "Winogrono Ice / Wiśnia Ice / Kwaśna Niebieska Malina",
     imageParts: [
-      [stockImageUrl("grapes fruit"), stockImageUrl("ice cubes")],
-      [stockImageUrl("cherry fruit"), stockImageUrl("ice cubes macro")],
-      [stockImageUrl("blue raspberry"), stockImageUrl("sour candy blue")]
+      [stockImageUrl("grape"), stockImageUrl("ice")],
+      [stockImageUrl("cherry"), stockImageUrl("ice")],
+      [stockImageUrl("blue-raspberry"), stockImageUrl("sour-blue-candy")]
     ]
   },
   {
@@ -90,9 +96,9 @@ const DEVICES = [
     summaryEn: "Peach Ice/Red Apple/Bluberry Cherry Cranberry",
     pl: "Brzoskwinia Ice / Czerwone Jabłko / Borówka Wiśnia Żurawina",
     imageParts: [
-      [stockImageUrl("peach fruit"), stockImageUrl("ice cubes")],
-      [stockImageUrl("red apple"), stockImageUrl("apple fruit closeup")],
-      [stockImageUrl("blueberry fruit"), stockImageUrl("cherry cranberry")]
+      [stockImageUrl("peach"), stockImageUrl("ice")],
+      [stockImageUrl("red-apple"), stockImageUrl("apple")],
+      [stockImageUrl("blueberry"), stockImageUrl("cherry-cranberry")]
     ]
   },
   {
@@ -100,9 +106,9 @@ const DEVICES = [
     summaryEn: "Kiwi Passion Fruit Guava/Green Apple/Juicy Peach",
     pl: "Kiwi Marakuja Guawa / Zielone Jabłko / Soczysta Brzoskwinia",
     imageParts: [
-      [stockImageUrl("kiwi fruit"), stockImageUrl("passion fruit guava")],
-      [stockImageUrl("green apple"), stockImageUrl("green apple macro")],
-      [stockImageUrl("juicy peach"), stockImageUrl("peach slices")]
+      [stockImageUrl("kiwi"), stockImageUrl("passion-fruit-guava")],
+      [stockImageUrl("green-apple"), stockImageUrl("green-apple")],
+      [stockImageUrl("juicy-peach"), stockImageUrl("peach")]
     ]
   }
 ];
@@ -150,16 +156,47 @@ function renderOrderingPage() {
   const adminPassword = document.getElementById("adminPassword");
   const adminMessage = document.getElementById("adminAccessMessage");
 
+  const modal = document.getElementById("userPasswordModal");
+  const modalSubtitle = document.getElementById("userPasswordSubtitle");
+  const modalForm = document.getElementById("userPasswordForm");
+  const modalInput = document.getElementById("userPasswordInput");
+  const modalMessage = document.getElementById("userPasswordMessage");
+  const modalCancel = document.getElementById("userPasswordCancel");
+
   if (!userPicker || !flavorGrid || !activeUserLabel) return;
 
   const orders = loadOrders();
-  let activeUser = USERS[0];
+  let activeUser = null;
+  let pendingUser = null;
 
   function refreshUserButtons() {
     userPicker.querySelectorAll("button").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.user === activeUser);
     });
-    activeUserLabel.textContent = `Aktywny: ${activeUser}`;
+    activeUserLabel.textContent = activeUser ? `Aktywny: ${activeUser}` : "Najpierw wybierz użytkownika";
+  }
+
+  function renderDeviceCounts() {
+    flavorGrid.querySelectorAll(".qty-value").forEach((node) => {
+      const deviceId = node.dataset.device;
+      node.textContent = activeUser ? orders[activeUser][deviceId] : "0";
+    });
+  }
+
+  function openPasswordModal(user) {
+    if (!modal || !modalSubtitle || !modalInput || !modalMessage) return;
+    pendingUser = user;
+    modalSubtitle.textContent = `Użytkownik: ${user}`;
+    modalInput.value = "";
+    modalMessage.textContent = "";
+    modal.classList.remove("hidden");
+    modalInput.focus();
+  }
+
+  function closePasswordModal() {
+    if (!modal) return;
+    modal.classList.add("hidden");
+    pendingUser = null;
   }
 
   USERS.forEach((user) => {
@@ -167,20 +204,9 @@ function renderOrderingPage() {
     btn.className = "user-btn";
     btn.textContent = user;
     btn.dataset.user = user;
-    btn.addEventListener("click", () => {
-      activeUser = user;
-      refreshUserButtons();
-      renderDeviceCounts();
-    });
+    btn.addEventListener("click", () => openPasswordModal(user));
     userPicker.appendChild(btn);
   });
-
-  function renderDeviceCounts() {
-    flavorGrid.querySelectorAll(".qty-value").forEach((node) => {
-      const deviceId = node.dataset.device;
-      node.textContent = orders[activeUser][deviceId];
-    });
-  }
 
   DEVICES.forEach((device) => {
     const card = document.createElement("article");
@@ -189,22 +215,19 @@ function renderOrderingPage() {
     const collage = document.createElement("div");
     collage.className = "flavor-collage";
 
-    device.imageParts.forEach((pair, partIndex) => {
+    device.imageParts.forEach((pair) => {
       const segment = document.createElement("div");
       segment.className = "flavor-segment";
 
       const top = document.createElement("div");
       top.className = "segment-half";
       top.style.backgroundImage = `url('${pair[0]}')`;
-      top.setAttribute("aria-hidden", "true");
 
       const bottom = document.createElement("div");
       bottom.className = "segment-half";
       bottom.style.backgroundImage = `url('${pair[1]}')`;
-      bottom.setAttribute("aria-hidden", "true");
 
       segment.append(top, bottom);
-      segment.setAttribute("title", `Część ${partIndex + 1}`);
       collage.appendChild(segment);
     });
 
@@ -223,10 +246,11 @@ function renderOrderingPage() {
     const qty = document.createElement("span");
     qty.className = "qty-value";
     qty.dataset.device = device.id;
-    qty.textContent = orders[activeUser][device.id];
+    qty.textContent = "0";
 
     minus.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (!activeUser) return;
       if (orders[activeUser][device.id] <= 0) return;
       orders[activeUser][device.id] -= 1;
       saveOrders(orders);
@@ -236,6 +260,7 @@ function renderOrderingPage() {
     controls.append(minus, qty);
 
     card.addEventListener("click", () => {
+      if (!activeUser) return;
       orders[activeUser][device.id] += 1;
       saveOrders(orders);
       qty.textContent = orders[activeUser][device.id];
@@ -244,6 +269,36 @@ function renderOrderingPage() {
     card.append(collage, title, controls);
     flavorGrid.appendChild(card);
   });
+
+  if (modalForm && modalInput && modalMessage) {
+    modalForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!pendingUser) return;
+
+      const expected = USER_PASSWORDS[pendingUser];
+      if (modalInput.value === expected) {
+        activeUser = pendingUser;
+        closePasswordModal();
+        refreshUserButtons();
+        renderDeviceCounts();
+        return;
+      }
+
+      modalMessage.textContent = "Nieprawidłowe hasło użytkownika.";
+      modalInput.value = "";
+      modalInput.focus();
+    });
+  }
+
+  if (modalCancel) {
+    modalCancel.addEventListener("click", () => closePasswordModal());
+  }
+
+  if (modal) {
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) closePasswordModal();
+    });
+  }
 
   if (adminForm && adminPassword && adminMessage) {
     adminForm.addEventListener("submit", (event) => {
@@ -259,6 +314,7 @@ function renderOrderingPage() {
   }
 
   refreshUserButtons();
+  renderDeviceCounts();
 }
 
 function formatFlavorForHeader(flavorText) {
