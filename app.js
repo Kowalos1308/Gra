@@ -1,9 +1,10 @@
-const USERS = ["Klaudia", "Damian", "Wera"];
+const USERS = ["Klaudia", "Damian", "Wera", "Sylwia"];
 
 const USER_PASSWORDS = {
   Klaudia: "123",
   Damian: "213",
-  Wera: "321"
+  Wera: "321",
+  Sylwia: "987"
 };
 
 const DEVICES = [
