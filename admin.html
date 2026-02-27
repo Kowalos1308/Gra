@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tabela zamówień vape</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container admin-container">
+    <header class="hero">
+      <p class="kicker">Panel podsumowania</p>
+      <h1>Tabela zamówień</h1>
+      <p class="subtitle">Na górze: urządzenia (każde = 3 smaki). Po lewej: użytkownicy.</p>
+    </header>
+
+    <div class="admin-actions">
+      <button id="resetOrdersBtn" class="danger-btn">Zresetuj zamówienie</button>
+      <a href="index.html" class="admin-link">← Powrót do wyboru</a>
+    </div>
+
+    <div class="table-wrap">
+      <table id="ordersTable"></table>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
