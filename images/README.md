@@ -1,10 +1,5 @@
-# Gdzie dodać zdjęcia vape
+# Obrazki kart vape
 
-Dodaj tutaj swoje zdjęcia urządzeń jako pliki:
+Karty smaków korzystają teraz z linków do zdjęć stockowych (Unsplash) definiowanych w `app.js`.
 
-- `1.jpg`
-- `2.jpg`
-- ...
-- `10.jpg`
-
-Kolejność odpowiada kolejności kafelków na stronie głównej.
+Folder `images/` nie jest już wymagany do działania widoku zamówień.
