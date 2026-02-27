@@ -112,22 +112,10 @@ h2 {
   min-height: 235px;
 }
 
-.flavor-collage {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.22rem;
+.flavor-image {
   width: 100%;
   aspect-ratio: 1 / 1;
-}
-
-.flavor-segment {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 0.22rem;
-}
-
-.segment-half {
-  border-radius: 0.35rem;
+  border-radius: 0.45rem;
   background-size: cover;
   background-position: center;
 }
