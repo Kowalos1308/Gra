@@ -61,6 +61,25 @@ const DEVICES = [
   }
 ];
 
+const API_URL = new URL('api.php', window.location.href);
+
+function makeApiUrl(action) {
+  const url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  return url.toString();
+}
+
+function showFatalError(message) {
+  const panels = document.querySelectorAll('.panel');
+  if (!panels.length) return;
+
+  const errorNode = document.createElement('p');
+  errorNode.className = 'access-message';
+  errorNode.style.color = '#fca5a5';
+  errorNode.textContent = message;
+  panels[0].prepend(errorNode);
+}
+
 function createEmptyOrders(users) {
   return Object.fromEntries(
     users.map((user) => [user.name, Object.fromEntries(DEVICES.map((device) => [device.id, 0]))])
@@ -82,7 +101,7 @@ function normalizeOrders(users, rawOrders) {
 }
 
 async function fetchData() {
-  const response = await fetch('/api/data');
+  const response = await fetch(makeApiUrl('data'));
   if (!response.ok) {
     throw new Error('Nie udało się pobrać danych z serwera.');
   }
@@ -98,7 +117,7 @@ async function fetchData() {
 }
 
 async function saveOrders(orders) {
-  const response = await fetch('/api/orders', {
+  const response = await fetch(makeApiUrl('orders'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ orders })
@@ -111,7 +130,7 @@ async function saveOrders(orders) {
 }
 
 async function addUser(name, password) {
-  const response = await fetch('/api/users', {
+  const response = await fetch(makeApiUrl('users'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, password, deviceIds: DEVICES.map((device) => device.id) })
@@ -386,5 +405,11 @@ async function renderAdminPage() {
   await drawTable();
 }
 
-renderOrderingPage();
-renderAdminPage();
+(async () => {
+  try {
+    await renderOrderingPage();
+    await renderAdminPage();
+  } catch (error) {
+    showFatalError(error.message || 'Wystąpił błąd ładowania danych.');
+  }
+})();
