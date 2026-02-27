@@ -3,57 +3,58 @@ const USERS = ["Klaudia", "Damian", "Wera"];
 const DEVICES = [
   {
     id: "watermelon-ice-strawberry-red-bull-strawberry-kiwi",
-    en: "Watermelon Ice / Strawberry Red Bull / Strawberry Kiwi",
+    summaryEn: "Watermelon Ice/ Strawberry Red Bull/Strawberry Kiwi",
     pl: "Arbuz Ice / Truskawka Red Bull / Truskawka Kiwi"
   },
   {
-    id: "strawberry-watermelon-blueberry-on-ice-kiwi-lemon",
-    en: "Strawberry Watermelon / Blueberry On Ice / Kiwi Lemon",
+    id: "strawberry-watermelon-bluberry-on-ice-kiwi-lemon",
+    summaryEn: "Strawberry Watermelon/Bluberry On Ice/Kiwi Lemon",
     pl: "Truskawka Arbuz / Borówka Ice / Kiwi Cytryna"
   },
   {
     id: "mixed-berries-peach-apple-ice-lady-killer",
-    en: "Mixed Berries / Peach Apple Ice / Lady Killer",
+    summaryEn: "Mixed Berries/Peach Apple Ice/Lady Killer",
     pl: "Leśne Owoce / Brzoskwinia Jabłko Ice / Lady Killer"
   },
   {
-    id: "mango-ice-banana-ice-blue-razz-lemonade",
-    en: "Mango Ice / Banana Ice / Blue Razz Lemonade",
+    id: "mango-ice-banana-ice-blue-razz-lemoniade",
+    summaryEn: "Mango Ice/Banana Ice/Blue Razz Lemoniade",
     pl: "Mango Ice / Banan Ice / Niebieska Malina Lemoniada"
   },
   {
     id: "peach-mango-pineapple-strawberry-raspberry-ice-triple-mango",
-    en: "Peach Mango Pineapple / Strawberry Raspberry Ice / Triple Mango",
+    summaryEn: "Peach Mango Pineapple/Strawberry Raspberry Ice/Triple Mango",
     pl: "Brzoskwinia Mango Ananas / Truskawka Malina Ice / Potrójne Mango"
   },
   {
     id: "strawberry-grape-peach-mango-ice-pop",
-    en: "Strawberry Grape / Peach Mango / Ice Pop",
+    summaryEn: "Strawberry Grape/Peach Mango/Ice Pop",
     pl: "Truskawka Winogrono / Brzoskwinia Mango / Ice Pop"
   },
   {
-    id: "strawberry-ice-sour-apple-blueberry-raspberry",
-    en: "Strawberry Ice / Sour Apple / Blueberry Raspberry",
+    id: "strawberry-ice-sour-apple-bluberry-raspberry",
+    summaryEn: "Strawberry Ice/Sour Apple/Bluberry Raspberry",
     pl: "Truskawka Ice / Kwaśne Jabłko / Borówka Malina"
   },
   {
     id: "grape-ice-cherry-ice-blue-sour-raspberry",
-    en: "Grape Ice / Cherry Ice / Blue Sour Raspberry",
+    summaryEn: "Grape Ice/Cherry Ice/Blue Sour Raspberry",
     pl: "Winogrono Ice / Wiśnia Ice / Kwaśna Niebieska Malina"
   },
   {
-    id: "peach-ice-red-apple-blueberry-cherry-cranberry",
-    en: "Peach Ice / Red Apple / Blueberry Cherry Cranberry",
+    id: "peach-ice-red-apple-bluberry-cherry-cranberry",
+    summaryEn: "Peach Ice/Red Apple/Bluberry Cherry Cranberry",
     pl: "Brzoskwinia Ice / Czerwone Jabłko / Borówka Wiśnia Żurawina"
   },
   {
     id: "kiwi-passion-fruit-guava-green-apple-juicy-peach",
-    en: "Kiwi Passion Fruit Guava / Green Apple / Juicy Peach",
+    summaryEn: "Kiwi Passion Fruit Guava/Green Apple/Juicy Peach",
     pl: "Kiwi Marakuja Guawa / Zielone Jabłko / Soczysta Brzoskwinia"
   }
 ];
 
 const STORAGE_KEY = "vape-orders-v2";
+const ADMIN_PASSWORD = "ogorek123";
 
 function defaultOrders() {
   return Object.fromEntries(
@@ -91,6 +92,9 @@ function renderOrderingPage() {
   const userPicker = document.getElementById("userPicker");
   const flavorGrid = document.getElementById("flavorGrid");
   const activeUserLabel = document.getElementById("activeUserLabel");
+  const adminForm = document.getElementById("adminAccessForm");
+  const adminPassword = document.getElementById("adminPassword");
+  const adminMessage = document.getElementById("adminAccessMessage");
 
   if (!userPicker || !flavorGrid || !activeUserLabel) return;
 
@@ -130,15 +134,11 @@ function renderOrderingPage() {
 
     const image = document.createElement("img");
     image.src = `images/${index + 1}.jpg`;
-    image.alt = `Zdjęcie vape: ${device.en}`;
+    image.alt = `Zdjęcie vape ${index + 1}`;
     image.loading = "lazy";
 
     const title = document.createElement("h3");
     title.textContent = device.pl;
-
-    const subtitle = document.createElement("p");
-    subtitle.className = "en-name";
-    subtitle.textContent = device.en;
 
     const controls = document.createElement("div");
     controls.className = "controls";
@@ -170,11 +170,40 @@ function renderOrderingPage() {
       qty.textContent = orders[activeUser][device.id];
     });
 
-    card.append(image, title, subtitle, controls);
+    card.append(image, title, controls);
     flavorGrid.appendChild(card);
   });
 
+  if (adminForm && adminPassword && adminMessage) {
+    adminForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (adminPassword.value === ADMIN_PASSWORD) {
+        window.location.href = "admin.html";
+        return;
+      }
+
+      adminMessage.textContent = "Nieprawidłowe hasło.";
+      adminPassword.value = "";
+    });
+  }
+
   refreshUserButtons();
+}
+
+function formatFlavorForHeader(flavorText) {
+  return flavorText.split("/").map((part) => part.trim()).join("<br>");
+}
+
+function renderBulkSummary(orders) {
+  const output = document.getElementById("bulkOrderText");
+  if (!output) return;
+
+  const lines = DEVICES.map((device) => {
+    const total = USERS.reduce((sum, user) => sum + orders[user][device.id], 0);
+    return `- ${device.summaryEn} - ${total}`;
+  });
+
+  output.value = lines.join("\n");
 }
 
 function renderAdminPage() {
@@ -190,14 +219,13 @@ function renderAdminPage() {
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
     const corner = document.createElement("th");
-    corner.textContent = "Użytkownik / Vape (3 smaki)";
+    corner.textContent = "Użytkownik / Vape";
     corner.className = "sticky-col";
     headRow.appendChild(corner);
 
     DEVICES.forEach((device) => {
       const th = document.createElement("th");
-      th.title = device.en;
-      th.textContent = device.pl;
+      th.innerHTML = formatFlavorForHeader(device.pl);
       headRow.appendChild(th);
     });
 
@@ -222,6 +250,7 @@ function renderAdminPage() {
     });
 
     table.append(thead, tbody);
+    renderBulkSummary(orders);
   }
 
   resetBtn.addEventListener("click", () => {

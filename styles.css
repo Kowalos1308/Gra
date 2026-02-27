@@ -48,18 +48,6 @@ h1 {
   color: var(--muted);
 }
 
-.hint {
-  margin: 0.5rem 0 0;
-  color: #cbd5e1;
-  font-size: 0.78rem;
-}
-
-.hint code {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 0.35rem;
-  padding: 0.08rem 0.28rem;
-}
-
 .panel {
   background: rgba(15, 23, 42, 0.82);
   border: 1px solid rgba(148, 163, 184, 0.15);
@@ -121,7 +109,7 @@ h2 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  min-height: 240px;
+  min-height: 205px;
 }
 
 .flavor-card img {
@@ -135,13 +123,6 @@ h2 {
   margin: 0.45rem 0 0;
   font-size: 0.78rem;
   line-height: 1.2;
-}
-
-.en-name {
-  margin: 0.2rem 0 0;
-  font-size: 0.67rem;
-  color: var(--muted);
-  min-height: 2rem;
 }
 
 .controls {
@@ -231,15 +212,65 @@ thead th {
   }
 
   .flavor-card {
-    min-height: 260px;
+    min-height: 235px;
     padding: 0.5rem;
   }
 
   .flavor-card h3 {
     font-size: 0.9rem;
   }
+}
 
-  .en-name {
-    font-size: 0.75rem;
-  }
+.admin-gate {
+  margin-top: 1.3rem;
+}
+
+.admin-access-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-access-form input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.55rem;
+  background: #0b1326;
+  color: var(--text);
+  padding: 0.56rem 0.7rem;
+}
+
+.access-message {
+  min-height: 1rem;
+  margin: 0.45rem 0 0;
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+tbody tr:nth-child(odd) td,
+tbody tr:nth-child(odd) th.sticky-col {
+  background: #101a2e;
+}
+
+tbody tr:nth-child(even) td,
+tbody tr:nth-child(even) th.sticky-col {
+  background: #0b1426;
+}
+
+.bulk-panel {
+  margin-top: 1rem;
+}
+
+.bulk-output {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.7rem;
+  background: #0b1326;
+  color: #e2e8f0;
+  padding: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }

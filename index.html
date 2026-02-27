@@ -11,8 +11,7 @@
     <header class="hero">
       <p class="kicker">Szybkie zamówienia</p>
       <h1>Wybierz użytkownika i naklikaj vape</h1>
-      <p class="subtitle">Każdy kafelek to 1 urządzenie (3 smaki). Dotknij kafelka, aby zwiększyć ilość.</p>
-      <p class="hint">Dodaj własne zdjęcia do folderu <code>images/</code> jako pliki <code>1.jpg</code> … <code>10.jpg</code>.</p>
+      <p class="subtitle">Każdy kafelek to 1 urządzenie. Dotknij kafelka, aby zwiększyć ilość.</p>
     </header>
 
     <section class="panel">
@@ -28,7 +27,15 @@
       <div id="flavorGrid" class="flavor-grid"></div>
     </section>
 
-    <a href="admin.html" class="admin-link">Podgląd tabeli zamówień →</a>
+    <section class="panel admin-gate">
+      <h2>Podgląd tabeli zamówień</h2>
+      <p class="subtitle">Wpisz hasło, aby przejść dalej.</p>
+      <form id="adminAccessForm" class="admin-access-form">
+        <input id="adminPassword" type="password" placeholder="Hasło" autocomplete="off" />
+        <button type="submit" class="user-btn">Wejdź</button>
+      </form>
+      <p id="adminAccessMessage" class="access-message" aria-live="polite"></p>
+    </section>
   </main>
 
   <script src="app.js"></script>
