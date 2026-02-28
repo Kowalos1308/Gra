@@ -26,6 +26,21 @@
       <h2>Zamówienie zbiorcze</h2>
       <textarea id="bulkOrderText" class="bulk-output" readonly></textarea>
     </section>
+
+    <section class="panel calc-panel">
+      <h2>Kalkulacja</h2>
+      <label class="calc-label" for="purchasePriceInput">Wprowadź cenę zakupu (za sztukę)</label>
+      <div class="calc-controls">
+        <input id="purchasePriceInput" class="calc-input" type="number" min="0" step="0.01" placeholder="np. 24.50" />
+        <button id="recalculateBtn" class="user-btn" type="button">Przelicz</button>
+      </div>
+
+      <div class="table-wrap calc-table-wrap">
+        <table id="calculationTable" class="calculation-table"></table>
+      </div>
+
+      <div id="calcSummary" class="calc-summary"></div>
+    </section>
   </main>
 
   <script src="app.js"></script>

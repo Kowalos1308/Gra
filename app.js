@@ -71,6 +71,7 @@ const DEVICES = [
 ];
 
 const STORAGE_KEY = "vape-orders-v2";
+const USER_PRICES_KEY = "vape-user-prices-v1";
 const ADMIN_PASSWORD = "ogorek123";
 
 function defaultOrders() {
@@ -105,6 +106,28 @@ function saveOrders(orders) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
 }
 
+function loadUserPrices() {
+  const raw = localStorage.getItem(USER_PRICES_KEY);
+  const base = Object.fromEntries(USERS.map((user) => [user, ""]));
+  if (!raw) return base;
+
+  try {
+    const parsed = JSON.parse(raw);
+    USERS.forEach((user) => {
+      if (typeof parsed[user] === "string") {
+        base[user] = parsed[user];
+      }
+    });
+    return base;
+  } catch {
+    return base;
+  }
+}
+
+function saveUserPrices(prices) {
+  localStorage.setItem(USER_PRICES_KEY, JSON.stringify(prices));
+}
+
 function renderOrderingPage() {
   const userPicker = document.getElementById("userPicker");
   const flavorGrid = document.getElementById("flavorGrid");
@@ -134,9 +157,10 @@ function renderOrderingPage() {
   }
 
   function renderDeviceCounts() {
-    flavorGrid.querySelectorAll(".qty-value").forEach((node) => {
+    flavorGrid.querySelectorAll(".minus-btn").forEach((node) => {
       const deviceId = node.dataset.device;
-      node.textContent = activeUser ? orders[activeUser][deviceId] : "0";
+      const qty = activeUser ? orders[activeUser][deviceId] : 0;
+      node.textContent = `− ${qty}`;
     });
   }
 
@@ -181,14 +205,10 @@ function renderOrderingPage() {
 
     const minus = document.createElement("button");
     minus.className = "minus-btn";
-    minus.textContent = "−";
+    minus.textContent = "− 0";
     minus.type = "button";
+    minus.dataset.device = device.id;
     minus.setAttribute("aria-label", `Zmniejsz ilość: ${device.pl}`);
-
-    const qty = document.createElement("span");
-    qty.className = "qty-value";
-    qty.dataset.device = device.id;
-    qty.textContent = "0";
 
     minus.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -196,16 +216,16 @@ function renderOrderingPage() {
       if (orders[activeUser][device.id] <= 0) return;
       orders[activeUser][device.id] -= 1;
       saveOrders(orders);
-      qty.textContent = orders[activeUser][device.id];
+      minus.textContent = `− ${orders[activeUser][device.id]}`;
     });
 
-    controls.append(minus, qty);
+    controls.append(minus);
 
     card.addEventListener("click", () => {
       if (!activeUser) return;
       orders[activeUser][device.id] += 1;
       saveOrders(orders);
-      qty.textContent = orders[activeUser][device.id];
+      minus.textContent = `− ${orders[activeUser][device.id]}`;
     });
 
     card.append(image, title, controls);
@@ -278,8 +298,101 @@ function renderBulkSummary(orders) {
 function renderAdminPage() {
   const table = document.getElementById("ordersTable");
   const resetBtn = document.getElementById("resetOrdersBtn");
+  const purchasePriceInput = document.getElementById("purchasePriceInput");
+  const recalculateBtn = document.getElementById("recalculateBtn");
+  const calculationTable = document.getElementById("calculationTable");
+  const calcSummary = document.getElementById("calcSummary");
 
   if (!table || !resetBtn) return;
+
+  const userPrices = loadUserPrices();
+
+  function parsePrice(value) {
+    const normalized = String(value).replace(",", ".").trim();
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  function getUserTotalQty(orders, user) {
+    return DEVICES.reduce((sum, device) => sum + orders[user][device.id], 0);
+  }
+
+  function renderCalculationSection() {
+    if (!calculationTable || !calcSummary || !purchasePriceInput) return;
+
+    const orders = loadOrders();
+    const purchasePrice = parsePrice(purchasePriceInput.value);
+
+    calculationTable.innerHTML = "";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Użytkownik", "Ilość sztuk", "Cena", "Suma"].forEach((label) => {
+      const th = document.createElement("th");
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+
+    const tbody = document.createElement("tbody");
+    let includedQty = 0;
+    let usersTotal = 0;
+
+    USERS.forEach((user) => {
+      const qty = getUserTotalQty(orders, user);
+      const row = document.createElement("tr");
+
+      const userCell = document.createElement("td");
+      userCell.textContent = user;
+      row.appendChild(userCell);
+
+      const qtyCell = document.createElement("td");
+      qtyCell.textContent = String(qty);
+      row.appendChild(qtyCell);
+
+      const priceCell = document.createElement("td");
+      const priceInput = document.createElement("input");
+      priceInput.type = "number";
+      priceInput.min = "0";
+      priceInput.step = "0.01";
+      priceInput.className = "price-input";
+      priceInput.value = userPrices[user] ?? "";
+      priceInput.placeholder = "np. 34.99";
+      priceInput.addEventListener("input", () => {
+        userPrices[user] = priceInput.value;
+        saveUserPrices(userPrices);
+      });
+      priceCell.appendChild(priceInput);
+      row.appendChild(priceCell);
+
+      const sumCell = document.createElement("td");
+      const userPrice = parsePrice(userPrices[user]);
+      if (userPrice === null) {
+        sumCell.textContent = "—";
+      } else {
+        const rowTotal = qty * userPrice;
+        usersTotal += rowTotal;
+        includedQty += qty;
+        sumCell.textContent = `${rowTotal.toFixed(2)} zł`;
+      }
+      row.appendChild(sumCell);
+
+      tbody.appendChild(row);
+    });
+
+    calculationTable.append(thead, tbody);
+
+    const purchaseTotal = purchasePrice === null ? null : purchasePrice * includedQty;
+    const purchaseText = purchaseTotal === null
+      ? "Podaj cenę zakupu, aby policzyć Twój koszt."
+      : `${purchaseTotal.toFixed(2)} zł`;
+
+    calcSummary.innerHTML = `
+      <div><strong>Za vapy zapłacisz:</strong> ${purchaseText}</div>
+      <div><strong>Użytkownicy zapłacą łącznie:</strong> ${usersTotal.toFixed(2)} zł</div>
+      <div><strong>Uwzględnione sztuki:</strong> ${includedQty}</div>
+    `;
+  }
 
   function drawTable() {
     const orders = loadOrders();
@@ -326,9 +439,17 @@ function renderAdminPage() {
     if (!confirm("Na pewno zresetować wszystkie zamówienia?")) return;
     saveOrders(defaultOrders());
     drawTable();
+    renderCalculationSection();
   });
 
+  if (recalculateBtn) {
+    recalculateBtn.addEventListener("click", () => {
+      renderCalculationSection();
+    });
+  }
+
   drawTable();
+  renderCalculationSection();
 }
 
 renderOrderingPage();
