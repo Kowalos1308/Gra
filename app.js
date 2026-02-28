@@ -97,6 +97,10 @@ function extractFlavorSegments(flavorText) {
     .slice(0, 3);
 }
 
+function formatMinusLabel(quantity) {
+  return `− ${quantity}`;
+}
+
 function showFatalError(message) {
   const panels = document.querySelectorAll('.panel');
   if (!panels.length) return;
@@ -204,9 +208,10 @@ async function renderOrderingPage() {
   }
 
   function renderDeviceCounts() {
-    flavorGrid.querySelectorAll('.qty-value').forEach((node) => {
-      const deviceId = node.dataset.device;
-      node.textContent = activeUser ? orders[activeUser][deviceId] : '0';
+    flavorGrid.querySelectorAll('.minus-btn[data-device]').forEach((button) => {
+      const deviceId = button.dataset.device;
+      const quantity = activeUser ? orders[activeUser][deviceId] : 0;
+      button.textContent = formatMinusLabel(quantity);
     });
   }
 
@@ -261,29 +266,25 @@ async function renderOrderingPage() {
 
     const minus = document.createElement('button');
     minus.className = 'minus-btn';
-    minus.textContent = '−';
     minus.type = 'button';
+    minus.dataset.device = device.id;
+    minus.textContent = formatMinusLabel(0);
     minus.setAttribute('aria-label', `Zmniejsz ilość: ${device.pl}`);
-
-    const qty = document.createElement('span');
-    qty.className = 'qty-value';
-    qty.dataset.device = device.id;
-    qty.textContent = '0';
 
     minus.addEventListener('click', async (event) => {
       event.stopPropagation();
       if (!activeUser || orders[activeUser][device.id] <= 0) return;
       orders[activeUser][device.id] -= 1;
-      qty.textContent = orders[activeUser][device.id];
+      minus.textContent = formatMinusLabel(orders[activeUser][device.id]);
       await saveOrders(orders);
     });
 
-    controls.append(minus, qty);
+    controls.append(minus);
 
     card.addEventListener('click', async () => {
       if (!activeUser) return;
       orders[activeUser][device.id] += 1;
-      qty.textContent = orders[activeUser][device.id];
+      minus.textContent = formatMinusLabel(orders[activeUser][device.id]);
       await saveOrders(orders);
     });
 
@@ -364,6 +365,76 @@ function renderBulkSummary(orders, users) {
   output.value = lines.join('\n');
 }
 
+function countUserItems(orders, username) {
+  return DEVICES.reduce((sum, device) => sum + (orders[username]?.[device.id] || 0), 0);
+}
+
+function formatCurrency(value) {
+  return `${value.toFixed(2)} zł`;
+}
+
+function drawCalculationRows(users, orders, priceMap, body) {
+  body.innerHTML = '';
+
+  users.forEach((user) => {
+    const row = document.createElement('tr');
+
+    const userCell = document.createElement('td');
+    userCell.textContent = user.name;
+
+    const qtyCell = document.createElement('td');
+    const quantity = countUserItems(orders, user.name);
+    qtyCell.textContent = String(quantity);
+
+    const priceCell = document.createElement('td');
+    const priceInput = document.createElement('input');
+    priceInput.type = 'number';
+    priceInput.step = '0.01';
+    priceInput.min = '0';
+    priceInput.className = 'calc-input';
+    priceInput.placeholder = 'np. 42';
+    priceInput.value = priceMap[user.name] === '' ? '' : String(priceMap[user.name]);
+    priceInput.addEventListener('input', () => {
+      priceMap[user.name] = priceInput.value;
+    });
+    priceCell.appendChild(priceInput);
+
+    const sumCell = document.createElement('td');
+    sumCell.textContent = '—';
+    sumCell.dataset.userTotal = user.name;
+
+    row.append(userCell, qtyCell, priceCell, sumCell);
+    body.appendChild(row);
+  });
+}
+
+function recalculateSummary(users, orders, priceMap, purchasePrice, summaryPaid, summaryReceived, calcBody) {
+  let totalPaid = 0;
+  let totalReceived = 0;
+
+  users.forEach((user) => {
+    const quantity = countUserItems(orders, user.name);
+    const userPrice = Number(priceMap[user.name]);
+    const totalCell = calcBody.querySelector(`[data-user-total="${user.name}"]`);
+
+    if (!Number.isFinite(userPrice) || userPrice <= 0 || quantity <= 0) {
+      if (totalCell) totalCell.textContent = '—';
+      return;
+    }
+
+    const received = quantity * userPrice;
+    const paid = quantity * purchasePrice;
+
+    totalReceived += received;
+    totalPaid += paid;
+
+    if (totalCell) totalCell.textContent = formatCurrency(received);
+  });
+
+  summaryPaid.textContent = `Ja zapłacę za vape: ${formatCurrency(totalPaid)}`;
+  summaryReceived.textContent = `Oni zapłacą mi: ${formatCurrency(totalReceived)}`;
+}
+
 async function renderAdminPage() {
   const table = document.getElementById('ordersTable');
   const resetBtn = document.getElementById('resetOrdersBtn');
@@ -372,8 +443,15 @@ async function renderAdminPage() {
   const newUserPassword = document.getElementById('newUserPassword');
   const addUserMessage = document.getElementById('addUserMessage');
   const usersList = document.getElementById('usersList');
+  const purchasePriceInput = document.getElementById('purchasePriceInput');
+  const recalcBtn = document.getElementById('recalculateBtn');
+  const calcBody = document.getElementById('calcTableBody');
+  const summaryPaid = document.getElementById('summaryPaid');
+  const summaryReceived = document.getElementById('summaryReceived');
 
   if (!table || !resetBtn) return;
+
+  const priceMap = {};
 
   async function drawTable() {
     const data = await fetchData();
@@ -418,6 +496,25 @@ async function renderAdminPage() {
     table.append(thead, tbody);
     renderBulkSummary(orders, users);
 
+    if (calcBody && summaryPaid && summaryReceived && purchasePriceInput) {
+      users.forEach((user) => {
+        if (!(user.name in priceMap)) {
+          priceMap[user.name] = '';
+        }
+      });
+      drawCalculationRows(users, orders, priceMap, calcBody);
+      const purchasePrice = Number(purchasePriceInput.value);
+      recalculateSummary(
+        users,
+        orders,
+        priceMap,
+        Number.isFinite(purchasePrice) && purchasePrice > 0 ? purchasePrice : 0,
+        summaryPaid,
+        summaryReceived,
+        calcBody
+      );
+    }
+
     if (usersList) {
       usersList.innerHTML = '';
       users.forEach((user) => {
@@ -434,6 +531,24 @@ async function renderAdminPage() {
     await saveOrders(createEmptyOrders(data.users));
     await drawTable();
   });
+
+  if (recalcBtn && purchasePriceInput && calcBody && summaryPaid && summaryReceived) {
+    recalcBtn.addEventListener('click', async () => {
+      const data = await fetchData();
+      const users = data.users;
+      const orders = data.orders;
+      const purchasePrice = Number(purchasePriceInput.value);
+      recalculateSummary(
+        users,
+        orders,
+        priceMap,
+        Number.isFinite(purchasePrice) && purchasePrice > 0 ? purchasePrice : 0,
+        summaryPaid,
+        summaryReceived,
+        calcBody
+      );
+    });
+  }
 
   if (addUserForm && newUserName && newUserPassword && addUserMessage) {
     addUserForm.addEventListener('submit', async (event) => {

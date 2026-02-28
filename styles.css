@@ -179,30 +179,20 @@ h2 {
 
 .controls {
   margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
+  display: block;
   padding-top: 0.5rem;
 }
 
 .minus-btn {
   border: none;
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 0.45rem;
-  background: rgba(20, 0, 41, 0.35);
+  width: 100%;
+  min-height: 2.05rem;
+  border-radius: 0.6rem;
+  background: rgba(20, 0, 41, 0.45);
   color: #fff;
-  font-size: 1.2rem;
+  font-size: 1.06rem;
   font-weight: 900;
   cursor: pointer;
-}
-
-.qty-value {
-  min-width: 1.7rem;
-  text-align: center;
-  font-size: 1.08rem;
-  font-weight: 900;
 }
 
 .admin-access-form {
@@ -313,6 +303,51 @@ tbody tr:nth-child(even) th.sticky-col {
   gap: 0.35rem;
 }
 
+
+.calc-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.calc-controls label {
+  font-weight: 700;
+}
+
+.calc-controls input {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.7rem;
+  background: rgba(22, 5, 50, 0.62);
+  color: var(--text);
+  padding: 0.56rem 0.72rem;
+}
+
+.calc-table {
+  width: 100%;
+  min-width: 560px;
+}
+
+.calc-input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(22, 5, 50, 0.62);
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+}
+
+.calc-summary {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.calc-summary p {
+  margin: 0;
+  font-weight: 700;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -347,22 +382,13 @@ tbody tr:nth-child(even) th.sticky-col {
 }
 
 @media (max-width: 700px) {
-  .controls {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: stretch;
-    gap: 0.4rem;
-  }
-
   .minus-btn {
-    width: 100%;
-    height: 2rem;
-    border-radius: 0.6rem;
-    font-size: 1.3rem;
+    min-height: 2.25rem;
+    font-size: 1.2rem;
   }
 
-  .qty-value {
-    justify-self: center;
+  .calc-table {
+    min-width: 460px;
   }
 }
 
@@ -378,5 +404,10 @@ tbody tr:nth-child(even) th.sticky-col {
 
   .flavor-segment {
     font-size: 0.79rem;
+  }
+
+  .calc-controls {
+    grid-template-columns: 1.3fr 1fr auto;
+    align-items: center;
   }
 }

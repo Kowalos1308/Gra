@@ -37,6 +37,35 @@
       <p id="addUserMessage" class="access-message" aria-live="polite"></p>
     </section>
 
+
+    <section class="panel">
+      <h2>Kalkulacja</h2>
+      <div class="calc-controls">
+        <label for="purchasePriceInput">Wprowadź cenę zakupu:</label>
+        <input id="purchasePriceInput" type="number" step="0.01" min="0" placeholder="np. 35" />
+        <button id="recalculateBtn" type="button" class="user-btn">Przelicz</button>
+      </div>
+
+      <div class="table-wrap calc-table-wrap">
+        <table class="calc-table">
+          <thead>
+            <tr>
+              <th>Użytkownik</th>
+              <th>Ilość sztuk</th>
+              <th>Cena</th>
+              <th>Suma</th>
+            </tr>
+          </thead>
+          <tbody id="calcTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="calc-summary">
+        <p id="summaryPaid">Ja zapłacę za vape: 0.00 zł</p>
+        <p id="summaryReceived">Oni zapłacą mi: 0.00 zł</p>
+      </div>
+    </section>
+
     <section class="panel">
       <h2>Lista użytkowników i haseł</h2>
       <ul id="usersList" class="users-list"></ul>
