@@ -1,0 +1,27 @@
+{
+  "adminPassword": "ogorek123",
+  "users": [
+    {
+      "name": "Klaudia",
+      "password": "123"
+    },
+    {
+      "name": "Damian",
+      "password": "213"
+    },
+    {
+      "name": "Wera",
+      "password": "321"
+    },
+    {
+      "name": "Sylwia",
+      "password": "987"
+    }
+  ],
+  "orders": {
+    "Klaudia": {},
+    "Damian": {},
+    "Wera": {},
+    "Sylwia": {}
+  }
+}
