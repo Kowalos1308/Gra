@@ -22,12 +22,15 @@
     <section class="panel">
       <div class="section-head">
         <h2>Wybierz vape</h2>
-        <span id="activeUserLabel" class="active-user">Najpierw wybierz użytkownika</span>
+        <div class="section-tools">
+          <span id="activeUserLabel" class="active-user">Najpierw wybierz użytkownika</span>
+          <button id="resetMyOrderBtn" class="danger-btn reset-my-order hidden" type="button">Zresetuj zamówienie</button>
+        </div>
       </div>
       <div id="flavorGrid" class="flavor-grid"></div>
     </section>
 
-    <section class="panel admin-gate">
+    <section id="adminGate" class="panel admin-gate hidden">
       <h2>Podgląd tabeli zamówień</h2>
       <p class="subtitle">Wpisz hasło, aby przejść dalej.</p>
       <form id="adminAccessForm" class="admin-access-form">

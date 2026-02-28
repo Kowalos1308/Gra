@@ -114,6 +114,19 @@ h2 {
   gap: 0.8rem;
 }
 
+.section-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.reset-my-order {
+  padding: 0.45rem 0.72rem;
+  font-size: 0.8rem;
+}
+
 .active-user {
   font-size: 0.85rem;
   color: #fff1ff;
@@ -259,6 +272,21 @@ table {
   border-collapse: collapse;
 }
 
+#ordersTable {
+  width: 100%;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.header-en {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.67rem;
+  color: #ead9ff;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 th,
 td {
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -362,6 +390,39 @@ tbody tr:nth-child(even) th.sticky-col {
   font-weight: 700;
 }
 
+
+.issue-table {
+  width: 100%;
+  min-width: 1180px;
+}
+
+.issue-header {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.issue-header img {
+  width: 36px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+}
+
+.issue-header span {
+  font-size: 0.64rem;
+  line-height: 1.2;
+  color: #f4eaff;
+}
+
+.issue-empty {
+  caption-side: bottom;
+  text-align: left;
+  padding: 0.5rem 0.2rem 0;
+  color: #ead9ff;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -397,6 +458,11 @@ tbody tr:nth-child(even) th.sticky-col {
 }
 
 @media (max-width: 700px) {
+  .section-tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .minus-btn {
     min-height: 2.25rem;
     font-size: 1.2rem;

@@ -181,6 +181,8 @@ async function renderOrderingPage() {
   const userPicker = document.getElementById('userPicker');
   const flavorGrid = document.getElementById('flavorGrid');
   const activeUserLabel = document.getElementById('activeUserLabel');
+  const resetMyOrderBtn = document.getElementById('resetMyOrderBtn');
+  const adminGate = document.getElementById('adminGate');
   const adminForm = document.getElementById('adminAccessForm');
   const adminPassword = document.getElementById('adminPassword');
   const adminMessage = document.getElementById('adminAccessMessage');
@@ -206,6 +208,15 @@ async function renderOrderingPage() {
       btn.classList.toggle('active', btn.dataset.user === activeUser);
     });
     activeUserLabel.textContent = activeUser ? `Aktywny: ${activeUser}` : 'Najpierw wybierz użytkownika';
+
+    if (resetMyOrderBtn) {
+      resetMyOrderBtn.classList.toggle('hidden', !activeUser);
+    }
+
+    if (adminGate) {
+      const canSeeAdminGate = activeUser === OWN_ORDER_USER;
+      adminGate.classList.toggle('hidden', !canSeeAdminGate);
+    }
   }
 
   function renderDeviceCounts() {
@@ -333,6 +344,20 @@ async function renderOrderingPage() {
     }
   }
 
+  if (resetMyOrderBtn) {
+    resetMyOrderBtn.addEventListener('click', async () => {
+      if (!activeUser) return;
+      if (!confirm('Na pewno zresetować Twoje zamówienie?')) return;
+
+      DEVICES.forEach((device) => {
+        orders[activeUser][device.id] = 0;
+      });
+
+      renderDeviceCounts();
+      await saveOrders(orders);
+    });
+  }
+
   if (adminForm && adminPassword && adminMessage) {
     adminForm.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -350,8 +375,9 @@ async function renderOrderingPage() {
   renderDeviceCounts();
 }
 
-function formatFlavorForHeader(flavorText) {
-  return flavorText.split('/').map((part) => part.trim()).join('<br>');
+function formatFlavorForHeader(device) {
+  const pl = device.pl.split('/').map((part) => part.trim()).join('<br>');
+  return `${pl}<span class="header-en">${device.summaryEn}</span>`;
 }
 
 function renderBulkSummary(orders, users) {
@@ -456,8 +482,59 @@ function recalculateSummary(users, orders, priceMap, purchasePrice, summaryPrepa
   summaryOwnPrice.textContent = `Twoja cena za szt.: ${formatCurrency(ownUnitPrice)}`;
 }
 
+function renderIssueTable(issueTable, users, orders) {
+  if (!issueTable) return;
+
+  const activeUsers = users.filter((user) => countUserItems(orders, user.name) > 0);
+  issueTable.innerHTML = '';
+
+  if (!activeUsers.length) {
+    const empty = document.createElement('caption');
+    empty.className = 'issue-empty';
+    empty.textContent = 'Brak użytkowników z zamówieniem.';
+    issueTable.appendChild(empty);
+    return;
+  }
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  const userCorner = document.createElement('th');
+  userCorner.textContent = 'Użytkownik';
+  userCorner.className = 'sticky-col';
+  headRow.appendChild(userCorner);
+
+  DEVICES.forEach((device) => {
+    const th = document.createElement('th');
+    th.innerHTML = `<div class="issue-header"><img src="${device.image}" alt="${device.summaryEn}" /><span>${device.summaryEn}</span></div>`;
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+
+  const tbody = document.createElement('tbody');
+  activeUsers.forEach((user) => {
+    const row = document.createElement('tr');
+    const userCell = document.createElement('th');
+    userCell.className = 'sticky-col';
+    userCell.textContent = user.name;
+    row.appendChild(userCell);
+
+    DEVICES.forEach((device) => {
+      const td = document.createElement('td');
+      const qty = orders[user.name][device.id];
+      td.textContent = qty > 0 ? String(qty) : '—';
+      row.appendChild(td);
+    });
+
+    tbody.appendChild(row);
+  });
+
+  issueTable.append(thead, tbody);
+}
+
 async function renderAdminPage() {
   const table = document.getElementById('ordersTable');
+  const issueTable = document.getElementById('issueTable');
   const resetBtn = document.getElementById('resetOrdersBtn');
   const addUserForm = document.getElementById('addUserForm');
   const newUserName = document.getElementById('newUserName');
@@ -490,7 +567,7 @@ async function renderAdminPage() {
 
     DEVICES.forEach((device) => {
       const th = document.createElement('th');
-      th.innerHTML = formatFlavorForHeader(device.pl);
+      th.innerHTML = formatFlavorForHeader(device);
       headRow.appendChild(th);
     });
 
@@ -516,6 +593,7 @@ async function renderAdminPage() {
 
     table.append(thead, tbody);
     renderBulkSummary(orders, users);
+    renderIssueTable(issueTable, users, orders);
 
     if (calcBody && summaryPrepare && summaryOwnPrice && purchasePriceInput) {
       users.forEach((user) => {
