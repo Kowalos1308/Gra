@@ -128,28 +128,19 @@ h2 {
 
 .controls {
   margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  justify-content: center;
+  display: block;
   padding-top: 0.35rem;
 }
 
 .minus-btn {
   border: none;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 100%;
+  min-height: 2rem;
   border-radius: 0.45rem;
   background: rgba(239, 68, 68, 0.2);
   color: #fecaca;
-  font-size: 1.2rem;
-}
-
-.qty-value {
-  min-width: 1.5rem;
-  text-align: center;
+  font-size: 0.95rem;
   font-weight: 800;
-  font-size: 1rem;
 }
 
 .admin-link {
@@ -274,6 +265,60 @@ tbody tr:nth-child(even) th.sticky-col {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
   line-height: 1.45;
+}
+
+.calc-panel {
+  margin-top: 1rem;
+}
+
+.calc-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #bfdbfe;
+  margin-bottom: 0.35rem;
+}
+
+.calc-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.calc-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.55rem;
+  background: #0b1326;
+  color: var(--text);
+  padding: 0.56rem 0.7rem;
+}
+
+.calc-table-wrap {
+  margin-bottom: 0.65rem;
+}
+
+.calculation-table {
+  width: 100%;
+}
+
+.price-input {
+  width: 90px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.45rem;
+  background: #070f22;
+  color: var(--text);
+  padding: 0.35rem 0.45rem;
+}
+
+.calc-summary {
+  font-size: 0.88rem;
+  color: #dbeafe;
+  line-height: 1.5;
+}
+
+.calc-summary strong {
+  color: #93c5fd;
 }
 
 
