@@ -35,6 +35,10 @@ body {
   padding: 1rem 0 2.2rem;
 }
 
+.admin-container {
+  width: min(90vw, 1900px);
+}
+
 .hero {
   margin: 0.4rem 0 1rem;
 }
@@ -65,11 +69,15 @@ h2 {
 
 .panel {
   background: linear-gradient(135deg, rgba(125, 23, 252, 0.26), rgba(219, 107, 252, 0.2));
-  border: 1px solid rgba(198, 191, 255, 0.48);
+  border: 1px solid rgba(198, 191, 255, 0.68);
   border-radius: 1.1rem;
   padding: 0.95rem;
   margin-bottom: 1rem;
-  box-shadow: 0 16px 30px rgba(8, 2, 24, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(252, 23, 211, 0.22),
+    0 0 20px rgba(125, 23, 252, 0.35),
+    0 0 34px rgba(219, 107, 252, 0.28),
+    0 16px 30px rgba(8, 2, 24, 0.35);
   backdrop-filter: blur(8px);
 }
 
@@ -241,8 +249,9 @@ h2 {
 .table-wrap {
   overflow: auto;
   border-radius: 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.42);
   background: rgba(24, 6, 55, 0.76);
+  box-shadow: 0 0 16px rgba(252, 23, 211, 0.24), 0 0 26px rgba(125, 23, 252, 0.2);
 }
 
 table {
@@ -337,6 +346,11 @@ tbody tr:nth-child(even) th.sticky-col {
   padding: 0.35rem 0.5rem;
 }
 
+.calc-input-own {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
 .calc-summary {
   margin-top: 0.75rem;
   display: grid;
@@ -365,9 +379,10 @@ tbody tr:nth-child(even) th.sticky-col {
 .modal-card {
   width: min(430px, 100%);
   background: linear-gradient(140deg, rgba(125, 23, 252, 0.32), rgba(219, 107, 252, 0.27));
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: 1rem;
   padding: 0.95rem;
+  box-shadow: 0 0 18px rgba(252, 23, 211, 0.28), 0 0 30px rgba(125, 23, 252, 0.24);
 }
 
 .modal-form {

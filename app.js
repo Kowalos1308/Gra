@@ -65,6 +65,7 @@ const API_URL = new URL('api.php', window.location.href);
 
 const ACTIVE_USER_COOKIE = 'activeVapeUser';
 const ACTIVE_USER_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+const OWN_ORDER_USER = 'Wera';
 
 function setCookie(name, value, maxAgeSeconds) {
   document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; SameSite=Lax`;
@@ -98,7 +99,7 @@ function extractFlavorSegments(flavorText) {
 }
 
 function formatMinusLabel(quantity) {
-  return `− ${quantity}`;
+  return `− ${quantity} | Zmniejsz`;
 }
 
 function showFatalError(message) {
@@ -392,15 +393,28 @@ function drawCalculationRows(users, orders, priceMap, body) {
     priceInput.step = '0.01';
     priceInput.min = '0';
     priceInput.className = 'calc-input';
-    priceInput.placeholder = 'np. 42';
-    priceInput.value = priceMap[user.name] === '' ? '' : String(priceMap[user.name]);
-    priceInput.addEventListener('input', () => {
-      priceMap[user.name] = priceInput.value;
-    });
+
+    if (user.name === OWN_ORDER_USER) {
+      priceMap[user.name] = '';
+      priceInput.value = '';
+      priceInput.placeholder = 'Twoje zamówienie';
+      priceInput.disabled = true;
+      priceInput.classList.add('calc-input-own');
+    } else {
+      if (!(user.name in priceMap)) {
+        priceMap[user.name] = '';
+      }
+      priceInput.placeholder = 'np. 42';
+      priceInput.value = priceMap[user.name] === '' ? '' : String(priceMap[user.name]);
+      priceInput.addEventListener('input', () => {
+        priceMap[user.name] = priceInput.value;
+      });
+    }
+
     priceCell.appendChild(priceInput);
 
     const sumCell = document.createElement('td');
-    sumCell.textContent = '—';
+    sumCell.textContent = user.name === OWN_ORDER_USER ? 'Moje zamówienie' : '—';
     sumCell.dataset.userTotal = user.name;
 
     row.append(userCell, qtyCell, priceCell, sumCell);
@@ -408,31 +422,38 @@ function drawCalculationRows(users, orders, priceMap, body) {
   });
 }
 
-function recalculateSummary(users, orders, priceMap, purchasePrice, summaryPaid, summaryReceived, calcBody) {
-  let totalPaid = 0;
-  let totalReceived = 0;
+function recalculateSummary(users, orders, priceMap, purchasePrice, summaryPrepare, summaryOwnPrice, calcBody) {
+  const totalQty = users.reduce((sum, user) => sum + countUserItems(orders, user.name), 0);
+  const preparedToPay = purchasePrice > 0 ? totalQty * purchasePrice : 0;
+
+  let othersContribution = 0;
 
   users.forEach((user) => {
     const quantity = countUserItems(orders, user.name);
-    const userPrice = Number(priceMap[user.name]);
     const totalCell = calcBody.querySelector(`[data-user-total="${user.name}"]`);
 
+    if (user.name === OWN_ORDER_USER) {
+      if (totalCell) totalCell.textContent = 'Moje zamówienie';
+      return;
+    }
+
+    const userPrice = Number(priceMap[user.name]);
     if (!Number.isFinite(userPrice) || userPrice <= 0 || quantity <= 0) {
       if (totalCell) totalCell.textContent = '—';
       return;
     }
 
     const received = quantity * userPrice;
-    const paid = quantity * purchasePrice;
-
-    totalReceived += received;
-    totalPaid += paid;
+    othersContribution += received;
 
     if (totalCell) totalCell.textContent = formatCurrency(received);
   });
 
-  summaryPaid.textContent = `Ja zapłacę za vape: ${formatCurrency(totalPaid)}`;
-  summaryReceived.textContent = `Oni zapłacą mi: ${formatCurrency(totalReceived)}`;
+  const ownQty = countUserItems(orders, OWN_ORDER_USER);
+  const ownUnitPrice = ownQty > 0 ? (preparedToPay - othersContribution) / ownQty : 0;
+
+  summaryPrepare.textContent = `Przygotuj do zapłaty: ${formatCurrency(preparedToPay)}`;
+  summaryOwnPrice.textContent = `Twoja cena za szt.: ${formatCurrency(ownUnitPrice)}`;
 }
 
 async function renderAdminPage() {
@@ -446,8 +467,8 @@ async function renderAdminPage() {
   const purchasePriceInput = document.getElementById('purchasePriceInput');
   const recalcBtn = document.getElementById('recalculateBtn');
   const calcBody = document.getElementById('calcTableBody');
-  const summaryPaid = document.getElementById('summaryPaid');
-  const summaryReceived = document.getElementById('summaryReceived');
+  const summaryPrepare = document.getElementById('summaryPrepare');
+  const summaryOwnPrice = document.getElementById('summaryOwnPrice');
 
   if (!table || !resetBtn) return;
 
@@ -496,7 +517,7 @@ async function renderAdminPage() {
     table.append(thead, tbody);
     renderBulkSummary(orders, users);
 
-    if (calcBody && summaryPaid && summaryReceived && purchasePriceInput) {
+    if (calcBody && summaryPrepare && summaryOwnPrice && purchasePriceInput) {
       users.forEach((user) => {
         if (!(user.name in priceMap)) {
           priceMap[user.name] = '';
@@ -509,8 +530,8 @@ async function renderAdminPage() {
         orders,
         priceMap,
         Number.isFinite(purchasePrice) && purchasePrice > 0 ? purchasePrice : 0,
-        summaryPaid,
-        summaryReceived,
+        summaryPrepare,
+        summaryOwnPrice,
         calcBody
       );
     }
@@ -532,7 +553,7 @@ async function renderAdminPage() {
     await drawTable();
   });
 
-  if (recalcBtn && purchasePriceInput && calcBody && summaryPaid && summaryReceived) {
+  if (recalcBtn && purchasePriceInput && calcBody && summaryPrepare && summaryOwnPrice) {
     recalcBtn.addEventListener('click', async () => {
       const data = await fetchData();
       const users = data.users;
@@ -543,8 +564,8 @@ async function renderAdminPage() {
         orders,
         priceMap,
         Number.isFinite(purchasePrice) && purchasePrice > 0 ? purchasePrice : 0,
-        summaryPaid,
-        summaryReceived,
+        summaryPrepare,
+        summaryOwnPrice,
         calcBody
       );
     });
