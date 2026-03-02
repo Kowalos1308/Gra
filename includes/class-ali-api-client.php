@@ -7,7 +7,9 @@ if (!defined('ABSPATH')) {
 class Ali_Api_Client {
     private $urls = [
         'https://api-sg.aliexpress.com/sync',
+        'http://api-sg.aliexpress.com/sync',
         'https://gw.api.taobao.com/router/rest',
+        'http://gw.api.taobao.com/router/rest',
     ];
 
     public function call_affiliate_api($product_id, $sku_id) {
@@ -74,19 +76,95 @@ class Ali_Api_Client {
 
     private function request_get($url, $params) {
         $response = wp_remote_get(add_query_arg($params, $url), [
-            'timeout' => 30,
+            'timeout' => 45,
+            'connect_timeout' => 20,
             'sslverify' => false,
+            'user-agent' => 'AliWooImporter/0.3 (+WordPress)',
         ]);
-        return $this->decode_response($response);
+
+        $decoded = $this->decode_response($response);
+        if (!is_wp_error($decoded)) {
+            return $decoded;
+        }
+
+        if (function_exists('curl_init')) {
+            $fallback = $this->curl_request('GET', add_query_arg($params, $url), []);
+            if (!is_wp_error($fallback)) {
+                return $fallback;
+            }
+        }
+
+        return $decoded;
     }
 
     private function request_post($url, $params) {
         $response = wp_remote_post($url, [
-            'timeout' => 30,
+            'timeout' => 45,
+            'connect_timeout' => 20,
             'sslverify' => false,
             'body' => $params,
+            'user-agent' => 'AliWooImporter/0.3 (+WordPress)',
         ]);
-        return $this->decode_response($response);
+
+        $decoded = $this->decode_response($response);
+        if (!is_wp_error($decoded)) {
+            return $decoded;
+        }
+
+        if (function_exists('curl_init')) {
+            $fallback = $this->curl_request('POST', $url, $params);
+            if (!is_wp_error($fallback)) {
+                return $fallback;
+            }
+        }
+
+        return $decoded;
+    }
+
+    private function curl_request($method, $url, $params) {
+        $ch = curl_init();
+        if (!$ch) {
+            return new WP_Error('ali_api_curl_init', 'Nie udało się zainicjalizować cURL');
+        }
+
+        $opts = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_CONNECTTIMEOUT => 20,
+            CURLOPT_TIMEOUT => 45,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_USERAGENT => 'AliWooImporter/0.3 (+WordPress)',
+        ];
+
+        if ($method === 'POST') {
+            $opts[CURLOPT_URL] = $url;
+            $opts[CURLOPT_POST] = true;
+            $opts[CURLOPT_POSTFIELDS] = http_build_query($params);
+        } else {
+            $opts[CURLOPT_URL] = $url;
+        }
+
+        curl_setopt_array($ch, $opts);
+        $body = curl_exec($ch);
+        $error = curl_error($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($body === false) {
+            return new WP_Error('ali_api_curl_error', 'cURL fallback error: ' . $error);
+        }
+        if ($code < 200 || $code >= 300) {
+            return new WP_Error('ali_api_curl_http', 'cURL fallback HTTP ' . $code);
+        }
+
+        $decoded = json_decode((string) $body, true);
+        if (!is_array($decoded)) {
+            return new WP_Error('ali_api_curl_json', 'cURL fallback: niepoprawny JSON');
+        }
+
+        return $decoded;
     }
 
     private function decode_response($response) {
