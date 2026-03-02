@@ -16,6 +16,18 @@ class Ali_Product_Service {
         preg_match('/product\s*id\s*:\s*(\d+)/i', $raw, $pm);
         preg_match('/sku\s*:\s*(\d+)/i', $raw, $sm);
 
+        // Fallback: same liczby w osobnych liniach.
+        if (empty($pm[1]) || empty($sm[1])) {
+            preg_match_all('/\b(\d{11,})\b/', $raw, $nm);
+            $nums = $nm[1] ?? [];
+            if (empty($pm[1]) && !empty($nums[0])) {
+                $pm[1] = $nums[0];
+            }
+            if (empty($sm[1]) && !empty($nums[1])) {
+                $sm[1] = $nums[1];
+            }
+        }
+
         return [
             sanitize_text_field($pm[1] ?? ''),
             sanitize_text_field($sm[1] ?? ''),
@@ -40,13 +52,13 @@ class Ali_Product_Service {
     }
 
     public function create_wc_product_from_api($product_id, $sku_id, $api1, $api2) {
-        $item_info = $api1['result']['result']['ae_item_info'] ?? [];
-        $sku_info = $api1['result']['result']['ae_item_sku_info'][0] ?? [];
+        $item_info = $api1['ae_item_info'] ?? [];
+        $sku_info = $api1['ae_item_sku_info'][0] ?? [];
 
-        $detail_html = $api2['result']['ae_item_base_info_dto']['detail'] ?? '';
+        $detail_html = $api2['ae_item_base_info_dto']['detail'] ?? '';
         $detail = sanitize_textarea_field(wp_strip_all_tags(html_entity_decode((string) $detail_html)));
 
-        $properties = $api2['result']['ae_item_properties'] ?? [];
+        $properties = $api2['ae_item_properties'] ?? [];
         $attributes = [];
         foreach ($properties as $prop) {
             $name = sanitize_text_field((string) ($prop['attr_name'] ?? ''));

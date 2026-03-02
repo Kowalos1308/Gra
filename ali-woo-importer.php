@@ -24,7 +24,7 @@ if (!defined('ALI_APP_SECRET')) {
     define('ALI_APP_SECRET', 'EwpDUCBrgnaiKsMmiUuGsD7oi2DSfFuI');
 }
 if (!defined('ALI_SESSION')) {
-    define('ALI_SESSION', '50000801932gWybqpeBDbP5KwxDogKIWGUvBk5EOSitp1ef8abe9YwPNwyfVctfmPx01');
+    define('ALI_SESSION', '50000800f40Dc4ooaadHuCjPevPlZcCQgOuvkojtK3DrVGGX9rPH15da5895KR0wH1f2');
 }
 
 require_once __DIR__ . '/includes/class-ali-api-client.php';
