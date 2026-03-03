@@ -128,12 +128,12 @@ class Ali_Admin_Moderate_Page {
                 echo '<tr>';
                 echo '<td>' . esc_html($pid) . '</td>';
                 echo '<td>' . esc_html(get_the_title()) . '</td>';
-                echo '<td>' . esc_html(get_post_status($pid)) . '</td>';
-                echo '<td>' . ($has_cats ? 'TAK' : 'NIE') . '</td>';
-                echo '<td>' . ($has_tags ? 'TAK' : 'NIE') . '</td>';
-                echo '<td>' . ($has_attrs ? 'TAK' : 'NIE') . '</td>';
+                echo '<td>' . $this->badge(get_post_status($pid), '#f0f0f1', '#1d2327') . '</td>';
+                echo '<td>' . $this->badge($has_cats ? 'TAK' : 'NIE', $has_cats ? '#d1e7dd' : '#f8d7da', $has_cats ? '#0f5132' : '#842029') . '</td>';
+                echo '<td>' . $this->badge($has_tags ? 'TAK' : 'NIE', $has_tags ? '#d1e7dd' : '#f8d7da', $has_tags ? '#0f5132' : '#842029') . '</td>';
+                echo '<td>' . $this->badge($has_attrs ? 'TAK' : 'NIE', $has_attrs ? '#d1e7dd' : '#f8d7da', $has_attrs ? '#0f5132' : '#842029') . '</td>';
                 echo '<td>' . esc_html($preview ?: '-') . '</td>';
-                echo '<td>' . ($corrected ? 'POPRAWIONO OPIS' : 'brak') . '</td>';
+                echo '<td>' . $this->badge($corrected ? 'POPRAWIONO OPIS' : 'brak', $corrected ? '#cfe2ff' : '#fff3cd', $corrected ? '#084298' : '#664d03') . '</td>';
                 echo '<td><a class="button" href="' . esc_url($edit_url) . '">Edytuj produkt</a></td>';
                 echo '</tr>';
             }
@@ -144,5 +144,9 @@ class Ali_Admin_Moderate_Page {
 
         echo '</tbody></table>';
         echo '</div>';
+    }
+
+    private function badge($text, $bg, $color) {
+        return '<span style="display:inline-block;padding:2px 8px;border-radius:12px;background:' . esc_attr($bg) . ';color:' . esc_attr($color) . ';font-weight:600;">' . esc_html((string) $text) . '</span>';
     }
 }

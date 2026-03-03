@@ -88,6 +88,12 @@ class Ali_Product_Service {
             $product->set_regular_price($price);
             $product->set_price($price);
         }
+        if ((string) $sku_id !== '') {
+            $product->set_sku((string) $sku_id);
+        }
+        if ($detail !== '') {
+            $product->set_description($detail);
+        }
         $product->set_status('draft');
         $product->set_product_url(esc_url_raw((string) ($item_info['original_link'] ?? '')));
         $product->set_button_text('Kup na AliExpress');
@@ -125,6 +131,20 @@ class Ali_Product_Service {
         }
 
         update_post_meta($new_id, '_ali_import_data', $meta);
+
+        $product_attrs = [];
+        $position = 0;
+        foreach ($attributes as $attr) {
+            $product_attrs[sanitize_title($attr['name'])] = [
+                'name' => $attr['name'],
+                'value' => $attr['value'],
+                'position' => $position++,
+                'is_visible' => 1,
+                'is_variation' => 0,
+                'is_taxonomy' => 0,
+            ];
+        }
+        update_post_meta($new_id, '_product_attributes', $product_attrs);
 
         return wc_get_product($new_id);
     }
