@@ -99,6 +99,7 @@ class Ali_Admin_Edit_Page {
                 'teeny' => true,
             ]
         );
+        echo '<p><label><input type="checkbox" name="detail_corrected" value="1" ' . checked(!empty($meta['detail_corrected']), true, false) . ' /> POPRAWIONO OPIS</label></p>';
 
         submit_button('Zapisz');
         echo '</form></div>';

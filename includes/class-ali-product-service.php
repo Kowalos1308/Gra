@@ -223,6 +223,7 @@ class Ali_Product_Service {
         $meta['order_number'] = sanitize_text_field((string) ($input['order_number'] ?? ($meta['order_number'] ?? '')));
         $meta['store_name'] = sanitize_text_field((string) ($input['store_name'] ?? ($meta['store_name'] ?? '')));
         $meta['detail'] = sanitize_textarea_field((string) ($input['detail'] ?? ''));
+        $meta['detail_corrected'] = !empty($input['detail_corrected']);
 
         $image_choice = sanitize_key((string) ($input['image_choice'] ?? 'image_link'));
         $meta['image_choice'] = in_array($image_choice, ['image_link', 'image_white'], true) ? $image_choice : 'image_link';

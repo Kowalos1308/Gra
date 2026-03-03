@@ -31,6 +31,7 @@ require_once __DIR__ . '/includes/class-ali-api-client.php';
 require_once __DIR__ . '/includes/class-ali-product-service.php';
 require_once __DIR__ . '/includes/class-ali-admin-add-page.php';
 require_once __DIR__ . '/includes/class-ali-admin-edit-page.php';
+require_once __DIR__ . '/includes/class-ali-admin-moderate-page.php';
 
 add_action('plugins_loaded', static function () {
     if (!class_exists('WooCommerce') || !class_exists('WC_Product_External')) {
@@ -40,6 +41,7 @@ add_action('plugins_loaded', static function () {
     $api_client = new Ali_Api_Client();
     $service = new Ali_Product_Service($api_client);
 
+    new Ali_Admin_Moderate_Page();
     new Ali_Admin_Add_Page($service);
     new Ali_Admin_Edit_Page($service);
 });

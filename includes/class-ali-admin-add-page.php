@@ -14,14 +14,13 @@ class Ali_Admin_Add_Page {
     }
 
     public function register_page() {
-        add_menu_page(
+        add_submenu_page(
+            'ali-super-wtyka',
             'Dodaj produkt z Ali',
             'Dodaj produkt z Ali',
             'manage_woocommerce',
             'ali-add-product',
-            [$this, 'render_page'],
-            'dashicons-download',
-            56
+            [$this, 'render_page']
         );
     }
 
