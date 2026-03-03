@@ -124,6 +124,18 @@ class Ali_Product_Service {
         $title = sanitize_text_field((string) ($input['title'] ?? ''));
         $price = wc_format_decimal((string) ($input['price'] ?? ''));
         $meta['brand'] = sanitize_text_field((string) ($input['brand'] ?? ''));
+        $meta['original_link'] = esc_url_raw((string) ($input['original_link'] ?? ($meta['original_link'] ?? '')));
+        $meta['image_link'] = esc_url_raw((string) ($input['image_link'] ?? ($meta['image_link'] ?? '')));
+        $meta['image_white'] = esc_url_raw((string) ($input['image_white'] ?? ($meta['image_white'] ?? '')));
+        $meta['product_category'] = sanitize_text_field((string) ($input['product_category'] ?? ($meta['product_category'] ?? '')));
+        $meta['ship_from_country'] = sanitize_text_field((string) ($input['ship_from_country'] ?? ($meta['ship_from_country'] ?? '')));
+        $meta['min_delivery_days'] = sanitize_text_field((string) ($input['min_delivery_days'] ?? ($meta['min_delivery_days'] ?? '')));
+        $meta['max_delivery_days'] = sanitize_text_field((string) ($input['max_delivery_days'] ?? ($meta['max_delivery_days'] ?? '')));
+        $meta['shipping_fees'] = sanitize_text_field((string) ($input['shipping_fees'] ?? ($meta['shipping_fees'] ?? '')));
+        $meta['product_score'] = sanitize_text_field((string) ($input['product_score'] ?? ($meta['product_score'] ?? '')));
+        $meta['review_number'] = sanitize_text_field((string) ($input['review_number'] ?? ($meta['review_number'] ?? '')));
+        $meta['order_number'] = sanitize_text_field((string) ($input['order_number'] ?? ($meta['order_number'] ?? '')));
+        $meta['store_name'] = sanitize_text_field((string) ($input['store_name'] ?? ($meta['store_name'] ?? '')));
         $meta['detail'] = sanitize_textarea_field((string) ($input['detail'] ?? ''));
 
         $image_choice = sanitize_key((string) ($input['image_choice'] ?? 'image_link'));
@@ -152,6 +164,9 @@ class Ali_Product_Service {
         if ($price !== '') {
             $product->set_regular_price($price);
             $product->set_price($price);
+        }
+        if (!empty($meta['original_link'])) {
+            $product->set_product_url($meta['original_link']);
         }
         $product->save();
 
