@@ -53,13 +53,13 @@ class Ali_Product_Service {
 
     public function create_wc_product_from_api($product_id, $sku_id, $api1, $api2) {
         $item_info = $api1['ae_item_info'] ?? [];
-        $sku_rows = $api1['ae_item_sku_info'] ?? $api1['ae_item_sku_infos'] ?? [];
+        $sku_rows = $this->normalize_affiliate_sku_rows($api1);
         $sku_info = $this->pick_sku_info($sku_rows, $sku_id);
 
         $detail_html = $api2['ae_item_base_info_dto']['detail'] ?? '';
         $detail = $this->format_detail_text($detail_html);
 
-        $properties = $api2['ae_item_properties'] ?? $api2['item_properties'] ?? [];
+        $properties = $this->normalize_ds_properties($api2);
         $attributes = [];
         foreach ($properties as $prop) {
             $name = sanitize_text_field((string) ($prop['attr_name'] ?? ''));
@@ -71,7 +71,8 @@ class Ali_Product_Service {
 
         $brand_from_attrs = '';
         foreach ($attributes as $attr) {
-            if (strtolower($attr['name']) === 'brand name' && !empty($attr['value'])) {
+            $attr_name = strtolower((string) $attr['name']);
+            if (($attr_name === 'brand name' || strpos($attr_name, 'mark') !== false) && !empty($attr['value'])) {
                 $brand_from_attrs = $attr['value'];
                 break;
             }
@@ -116,6 +117,10 @@ class Ali_Product_Service {
             'image_choice' => 'image_link',
         ];
 
+        if ($meta['ship_from_country'] === '' && !empty($api2['logistics_info_dto']['ship_to_country'])) {
+            $meta['ship_from_country'] = sanitize_text_field((string) $api2['logistics_info_dto']['ship_to_country']);
+        }
+
         update_post_meta($new_id, '_ali_import_data', $meta);
 
         return wc_get_product($new_id);
@@ -136,6 +141,34 @@ class Ali_Product_Service {
         }
 
         return $sku_list[0] ?? [];
+    }
+
+    private function normalize_affiliate_sku_rows($api1) {
+        $raw = $api1['ae_item_sku_info'] ?? $api1['ae_item_sku_infos'] ?? [];
+
+        if (isset($raw['traffic_sku_info_list']) && is_array($raw['traffic_sku_info_list'])) {
+            return $raw['traffic_sku_info_list'];
+        }
+
+        if (isset($raw['traffic_sku_infos']) && is_array($raw['traffic_sku_infos'])) {
+            return $raw['traffic_sku_infos'];
+        }
+
+        return is_array($raw) ? $raw : [];
+    }
+
+    private function normalize_ds_properties($api2) {
+        $raw = $api2['ae_item_properties'] ?? $api2['item_properties'] ?? [];
+
+        if (isset($raw['ae_item_property']) && is_array($raw['ae_item_property'])) {
+            return $raw['ae_item_property'];
+        }
+
+        if (isset($raw['ae_item_properties']) && is_array($raw['ae_item_properties'])) {
+            return $raw['ae_item_properties'];
+        }
+
+        return is_array($raw) ? $raw : [];
     }
 
     private function format_detail_text($html) {
