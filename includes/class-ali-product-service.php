@@ -58,6 +58,7 @@ class Ali_Product_Service {
 
         $detail_html = $api2['ae_item_base_info_dto']['detail'] ?? '';
         $detail = $this->format_detail_text($detail_html);
+        $sales_count = sanitize_text_field((string) ($api2['ae_item_base_info_dto']['sales_count'] ?? ''));
 
         $properties = $this->normalize_ds_properties($api2);
         $attributes = [];
@@ -105,7 +106,9 @@ class Ali_Product_Service {
             'product_category' => sanitize_text_field((string) ($item_info['product_category'] ?? '')),
             'store_name' => sanitize_text_field((string) ($item_info['store_name'] ?? '')),
             'product_score' => sanitize_text_field((string) ($item_info['product_score'] ?? '')),
-            'order_number' => sanitize_text_field((string) ($item_info['order_number'] ?? '')),
+            'order_number' => $sales_count !== ''
+                ? $sales_count
+                : sanitize_text_field((string) ($item_info['order_number'] ?? '')),
             'review_number' => sanitize_text_field((string) ($item_info['review_number'] ?? '')),
             'shipping_fees' => sanitize_text_field((string) ($sku_info['shipping_fees'] ?? ($sku_info['shipping_fee'] ?? ($sku_info['shipping_cost'] ?? '')))),
             'min_delivery_days' => sanitize_text_field((string) ($sku_info['min_delivery_days'] ?? ($sku_info['delivery_days'] ?? ''))),
