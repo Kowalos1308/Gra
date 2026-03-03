@@ -113,7 +113,7 @@ class Ali_Admin_Moderate_Page {
                 $meta = get_post_meta($pid, '_ali_import_data', true);
                 $meta = is_array($meta) ? $meta : [];
 
-                $has_cats = has_term('', 'product_cat', $pid);
+                $has_cats = $this->has_meaningful_categories($pid);
                 $has_tags = has_term('', 'product_tag', $pid);
                 $attrs = get_post_meta($pid, '_product_attributes', true);
                 $has_attrs = is_array($attrs) && !empty($attrs);
@@ -148,5 +148,28 @@ class Ali_Admin_Moderate_Page {
 
     private function badge($text, $bg, $color) {
         return '<span style="display:inline-block;padding:2px 8px;border-radius:12px;background:' . esc_attr($bg) . ';color:' . esc_attr($color) . ';font-weight:600;">' . esc_html((string) $text) . '</span>';
+    }
+
+    private function has_meaningful_categories($product_id) {
+        $terms = get_the_terms($product_id, 'product_cat');
+        if (empty($terms) || is_wp_error($terms)) {
+            return false;
+        }
+
+        $default_cat = (int) get_option('default_product_cat');
+        foreach ($terms as $term) {
+            if ((int) $term->term_id === $default_cat) {
+                continue;
+            }
+            if (in_array(strtolower((string) $term->slug), ['uncategorized', 'bez-kategorii'], true)) {
+                continue;
+            }
+            if (in_array(strtolower((string) $term->name), ['uncategorized', 'bez kategorii'], true)) {
+                continue;
+            }
+            return true;
+        }
+
+        return false;
     }
 }

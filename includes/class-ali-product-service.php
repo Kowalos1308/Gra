@@ -146,7 +146,48 @@ class Ali_Product_Service {
         }
         update_post_meta($new_id, '_product_attributes', $product_attrs);
 
+        $default_tags = $this->build_default_tags($meta);
+        if (!empty($default_tags)) {
+            wp_set_object_terms($new_id, $default_tags, 'product_tag');
+        }
+
         return wc_get_product($new_id);
+    }
+
+    private function build_default_tags($meta) {
+        $tags = [];
+
+        $shipping_fees = trim((string) ($meta['shipping_fees'] ?? ''));
+        if ($shipping_fees === '0' || $shipping_fees === '0.0' || $shipping_fees === '0.00') {
+            $tags[] = 'Darmowa dostawa';
+        }
+
+        $ship = strtoupper(trim((string) ($meta['ship_from_country'] ?? '')));
+        if ($ship === 'PL') {
+            $tags[] = 'Wysyłka z Polski';
+        }
+        if (in_array($ship, ['ES', 'IT', 'FR', 'DE'], true)) {
+            $tags[] = 'Wysyłka z Europy';
+        }
+        if ($ship === 'CN') {
+            $tags[] = 'Wysyłka z Chin';
+        }
+
+        $min_days = (int) preg_replace('/\D+/', '', (string) ($meta['min_delivery_days'] ?? '0'));
+        $max_days = (int) preg_replace('/\D+/', '', (string) ($meta['max_delivery_days'] ?? '0'));
+        if ($max_days > 0 && $max_days <= 5) {
+            $tags[] = 'Szybka dostawa';
+        }
+        if ($max_days > 0 && $max_days <= 7) {
+            $tags[] = 'Dostawa w tydzień';
+        }
+
+        $sales = strtoupper(trim((string) ($meta['order_number'] ?? '')));
+        if ($sales === '1000+' || preg_match('/^(\d{4,})\+?$/', $sales)) {
+            $tags[] = 'Ponad 1000 sprzedaży';
+        }
+
+        return array_values(array_unique($tags));
     }
 
     private function pick_sku_info($sku_list, $sku_id) {
@@ -229,6 +270,7 @@ class Ali_Product_Service {
 
         $title = sanitize_text_field((string) ($input['title'] ?? ''));
         $price = wc_format_decimal((string) ($input['price'] ?? ''));
+        $status = sanitize_key((string) ($input['product_status'] ?? 'draft'));
         $meta['brand'] = sanitize_text_field((string) ($input['brand'] ?? ''));
         $meta['original_link'] = esc_url_raw((string) ($input['original_link'] ?? ($meta['original_link'] ?? '')));
         $meta['image_link'] = esc_url_raw((string) ($input['image_link'] ?? ($meta['image_link'] ?? '')));
@@ -272,6 +314,9 @@ class Ali_Product_Service {
             $product->set_regular_price($price);
             $product->set_price($price);
         }
+        if (in_array($status, ['draft', 'publish', 'pending', 'private'], true)) {
+            $product->set_status($status);
+        }
         if (!empty($meta['original_link'])) {
             $product->set_product_url($meta['original_link']);
         }
@@ -297,6 +342,28 @@ class Ali_Product_Service {
         if (isset($input['tax_input']['product_cat']) && is_array($input['tax_input']['product_cat'])) {
             $cat_ids = array_filter(array_map('absint', $input['tax_input']['product_cat']));
             wp_set_object_terms($product_id, $cat_ids, 'product_cat');
+        }
+
+        $tag_names = [];
+        if (isset($input['selected_tags']) && is_array($input['selected_tags'])) {
+            foreach ($input['selected_tags'] as $tag_name) {
+                $name = sanitize_text_field((string) $tag_name);
+                if ($name !== '') {
+                    $tag_names[] = $name;
+                }
+            }
+        }
+        $extra_tags = sanitize_text_field((string) ($input['extra_tags'] ?? ''));
+        if ($extra_tags !== '') {
+            foreach (array_map('trim', explode(',', $extra_tags)) as $name) {
+                if ($name !== '') {
+                    $tag_names[] = sanitize_text_field($name);
+                }
+            }
+        }
+        $tag_names = array_values(array_unique($tag_names));
+        if (!empty($tag_names)) {
+            wp_set_object_terms($product_id, $tag_names, 'product_tag');
         }
 
         return true;

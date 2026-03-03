@@ -29,6 +29,17 @@ class Ali_Admin_Edit_Page {
         $meta = get_post_meta($product_id, '_ali_import_data', true);
         $meta = is_array($meta) ? $meta : [];
         $attrs = isset($meta['attributes']) && is_array($meta['attributes']) ? $meta['attributes'] : [];
+        $current_tags = wp_get_post_terms($product_id, 'product_tag', ['fields' => 'names']);
+        $current_tags = is_wp_error($current_tags) ? [] : $current_tags;
+        $suggested_tags = [
+            'Darmowa dostawa',
+            'Wysyłka z Polski',
+            'Wysyłka z Europy',
+            'Wysyłka z Chin',
+            'Szybka dostawa',
+            'Dostawa w tydzień',
+            'Ponad 1000 sprzedaży',
+        ];
 
         echo '<div class="wrap">';
         echo '<h1>Edycja produktu Ali #' . esc_html($product_id) . '</h1>';
@@ -42,6 +53,7 @@ class Ali_Admin_Edit_Page {
         echo '<table class="form-table" role="presentation">';
         $this->text_input_row('title', 'Tytuł', $product->get_name());
         $this->text_input_row('price', 'Cena', $product->get_regular_price());
+        $this->status_row('product_status', 'Status', $product->get_status());
         $this->text_input_row('brand', 'Marka', $meta['brand'] ?? '');
         $this->text_input_row('original_link', 'Link AliExpress', $meta['original_link'] ?? '');
         echo '</table>';
@@ -61,6 +73,14 @@ class Ali_Admin_Edit_Page {
             'selected_cats' => wp_get_post_terms($product_id, 'product_cat', ['fields' => 'ids']),
             'checked_ontop' => false,
         ]);
+        echo '<h3>Tagi</h3>';
+        echo '<p>Proponowane / często używane (max 5):</p>';
+        foreach ($suggested_tags as $tag) {
+            echo '<label style="display:inline-block;margin-right:10px;margin-bottom:6px;">';
+            echo '<input class="ali-suggested-tag" type="checkbox" name="selected_tags[]" value="' . esc_attr($tag) . '" ' . checked(in_array($tag, $current_tags, true), true, false) . ' /> ' . esc_html($tag);
+            echo '</label>';
+        }
+        echo '<p><label>Dodatkowe tagi (po przecinku): <input type="text" class="regular-text" name="extra_tags" value="" /></label></p>';
 
         echo '<h2>Dostawa i statystyki</h2>';
         echo '<table class="form-table" role="presentation">';
@@ -105,6 +125,15 @@ class Ali_Admin_Edit_Page {
         echo '</form></div>';
         ?>
         <script>
+            document.querySelectorAll('.ali-suggested-tag').forEach(function(box){
+                box.addEventListener('change', function(){
+                    var checked = document.querySelectorAll('.ali-suggested-tag:checked');
+                    if (checked.length > 5) {
+                        this.checked = false;
+                        alert('Możesz wybrać maksymalnie 5 proponowanych tagów.');
+                    }
+                });
+            });
             document.getElementById('ali-select-all')?.addEventListener('click', function(){
                 document.querySelectorAll('.ali-attr-check').forEach(function(el){el.checked = true;});
             });
@@ -136,5 +165,19 @@ class Ali_Admin_Edit_Page {
         echo '<tr><th><label for="' . esc_attr($name) . '">' . esc_html($label) . '</label></th><td>';
         echo '<input class="regular-text" type="text" name="' . esc_attr($name) . '" id="' . esc_attr($name) . '" value="' . esc_attr((string) $value) . '" />';
         echo '</td></tr>';
+    }
+
+    private function status_row($name, $label, $value) {
+        $statuses = [
+            'draft' => 'Szkic',
+            'publish' => 'Opublikowany',
+            'pending' => 'Oczekuje na review',
+            'private' => 'Prywatny',
+        ];
+        echo '<tr><th><label for="' . esc_attr($name) . '">' . esc_html($label) . '</label></th><td><select name="' . esc_attr($name) . '" id="' . esc_attr($name) . '">';
+        foreach ($statuses as $key => $text) {
+            echo '<option value="' . esc_attr($key) . '" ' . selected($value, $key, false) . '>' . esc_html($text) . '</option>';
+        }
+        echo '</select></td></tr>';
     }
 }
