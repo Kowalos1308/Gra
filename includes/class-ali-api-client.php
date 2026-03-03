@@ -30,7 +30,9 @@ class Ali_Api_Client {
             return new WP_Error('ali_api1_error', 'Błąd API SKU: ' . sanitize_text_field((string) ($json['error_response']['msg'] ?? 'Nieznany błąd')));
         }
 
-        $result = $json['aliexpress_affiliate_product_sku_detail_get_response']['result']['result'] ?? null;
+        $result = $json['aliexpress_affiliate_product_sku_detail_get_response']['result']['result']
+            ?? $json['result']['result']
+            ?? null;
         return is_array($result) ? $result : new WP_Error('ali_api1_payload', 'Brak danych SKU');
     }
 
@@ -61,7 +63,9 @@ class Ali_Api_Client {
             return new WP_Error('ali_api2_error', 'Błąd API Product: ' . sanitize_text_field((string) ($json['error_response']['msg'] ?? 'Nieznany błąd')));
         }
 
-        $result = $json['aliexpress_ds_product_get_response']['result'] ?? null;
+        $result = $json['aliexpress_ds_product_get_response']['result']
+            ?? $json['result']
+            ?? null;
         return is_array($result) ? $result : new WP_Error('ali_api2_payload', 'Brak danych API2');
     }
 

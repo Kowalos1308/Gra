@@ -89,7 +89,16 @@ class Ali_Admin_Edit_Page {
         echo '</tbody></table>';
 
         echo '<h2>Opis</h2>';
-        echo '<textarea name="detail" rows="8" class="large-text">' . esc_textarea($meta['detail'] ?? '') . '</textarea>';
+        wp_editor(
+            (string) ($meta['detail'] ?? ''),
+            'ali_detail_editor',
+            [
+                'textarea_name' => 'detail',
+                'textarea_rows' => 12,
+                'media_buttons' => false,
+                'teeny' => true,
+            ]
+        );
 
         submit_button('Zapisz');
         echo '</form></div>';

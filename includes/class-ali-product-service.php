@@ -53,10 +53,10 @@ class Ali_Product_Service {
 
     public function create_wc_product_from_api($product_id, $sku_id, $api1, $api2) {
         $item_info = $api1['ae_item_info'] ?? [];
-        $sku_info = $api1['ae_item_sku_info'][0] ?? [];
+        $sku_info = $this->pick_sku_info($api1['ae_item_sku_info'] ?? [], $sku_id);
 
         $detail_html = $api2['ae_item_base_info_dto']['detail'] ?? '';
-        $detail = sanitize_textarea_field(wp_strip_all_tags(html_entity_decode((string) $detail_html)));
+        $detail = $this->format_detail_text($detail_html);
 
         $properties = $api2['ae_item_properties'] ?? [];
         $attributes = [];
@@ -110,6 +110,33 @@ class Ali_Product_Service {
         update_post_meta($new_id, '_ali_import_data', $meta);
 
         return wc_get_product($new_id);
+    }
+
+    private function pick_sku_info($sku_list, $sku_id) {
+        if (!is_array($sku_list)) {
+            return [];
+        }
+
+        foreach ($sku_list as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            if (!empty($row['sku_id']) && (string) $row['sku_id'] === (string) $sku_id) {
+                return $row;
+            }
+        }
+
+        return $sku_list[0] ?? [];
+    }
+
+    private function format_detail_text($html) {
+        $text = html_entity_decode((string) $html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/<\s*br\s*\/?>/i', "\n", $text);
+        $text = preg_replace('/<\/(p|div|li|h[1-6])>/i', "\n", $text);
+        $text = wp_strip_all_tags($text);
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);
+
+        return sanitize_textarea_field(trim((string) $text));
     }
 
     public function save_edited_product($product_id, $input) {
