@@ -53,12 +53,13 @@ class Ali_Product_Service {
 
     public function create_wc_product_from_api($product_id, $sku_id, $api1, $api2) {
         $item_info = $api1['ae_item_info'] ?? [];
-        $sku_info = $this->pick_sku_info($api1['ae_item_sku_info'] ?? [], $sku_id);
+        $sku_rows = $api1['ae_item_sku_info'] ?? $api1['ae_item_sku_infos'] ?? [];
+        $sku_info = $this->pick_sku_info($sku_rows, $sku_id);
 
         $detail_html = $api2['ae_item_base_info_dto']['detail'] ?? '';
         $detail = $this->format_detail_text($detail_html);
 
-        $properties = $api2['ae_item_properties'] ?? [];
+        $properties = $api2['ae_item_properties'] ?? $api2['item_properties'] ?? [];
         $attributes = [];
         foreach ($properties as $prop) {
             $name = sanitize_text_field((string) ($prop['attr_name'] ?? ''));
@@ -68,9 +69,17 @@ class Ali_Product_Service {
             }
         }
 
+        $brand_from_attrs = '';
+        foreach ($attributes as $attr) {
+            if (strtolower($attr['name']) === 'brand name' && !empty($attr['value'])) {
+                $brand_from_attrs = $attr['value'];
+                break;
+            }
+        }
+
         $product = new WC_Product_External();
         $title = sanitize_text_field((string) ($item_info['title'] ?? ('AliExpress ' . $product_id)));
-        $price = wc_format_decimal((string) ($sku_info['sale_price_with_tax'] ?? ''));
+        $price = wc_format_decimal((string) ($sku_info['sale_price_with_tax'] ?? ($sku_info['price_with_tax'] ?? '')));
 
         $product->set_name($title);
         if ($price !== '') {
@@ -97,11 +106,11 @@ class Ali_Product_Service {
             'product_score' => sanitize_text_field((string) ($item_info['product_score'] ?? '')),
             'order_number' => sanitize_text_field((string) ($item_info['order_number'] ?? '')),
             'review_number' => sanitize_text_field((string) ($item_info['review_number'] ?? '')),
-            'shipping_fees' => sanitize_text_field((string) ($sku_info['shipping_fees'] ?? '')),
-            'min_delivery_days' => sanitize_text_field((string) ($sku_info['min_delivery_days'] ?? '')),
-            'max_delivery_days' => sanitize_text_field((string) ($sku_info['max_delivery_days'] ?? '')),
-            'ship_from_country' => sanitize_text_field((string) ($sku_info['ship_from_country'] ?? '')),
-            'brand' => sanitize_text_field((string) ($item_info['brand'] ?? '')),
+            'shipping_fees' => sanitize_text_field((string) ($sku_info['shipping_fees'] ?? ($sku_info['shipping_fee'] ?? ($sku_info['shipping_cost'] ?? '')))),
+            'min_delivery_days' => sanitize_text_field((string) ($sku_info['min_delivery_days'] ?? ($sku_info['delivery_days'] ?? ''))),
+            'max_delivery_days' => sanitize_text_field((string) ($sku_info['max_delivery_days'] ?? ($sku_info['delivery_days'] ?? ''))),
+            'ship_from_country' => sanitize_text_field((string) ($sku_info['ship_from_country'] ?? ($sku_info['ship_from'] ?? ''))),
+            'brand' => sanitize_text_field((string) ($item_info['brand'] ?? $brand_from_attrs)),
             'detail' => $detail,
             'attributes' => $attributes,
             'image_choice' => 'image_link',
