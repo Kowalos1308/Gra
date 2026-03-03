@@ -150,8 +150,22 @@ class Ali_Product_Service {
             return $raw['traffic_sku_info_list'];
         }
 
+        if (
+            isset($raw['traffic_sku_info_list']['traffic_sku_info'])
+            && is_array($raw['traffic_sku_info_list']['traffic_sku_info'])
+        ) {
+            return $raw['traffic_sku_info_list']['traffic_sku_info'];
+        }
+
         if (isset($raw['traffic_sku_infos']) && is_array($raw['traffic_sku_infos'])) {
             return $raw['traffic_sku_infos'];
+        }
+
+        if (
+            isset($raw['traffic_sku_infos']['traffic_sku_info'])
+            && is_array($raw['traffic_sku_infos']['traffic_sku_info'])
+        ) {
+            return $raw['traffic_sku_infos']['traffic_sku_info'];
         }
 
         return is_array($raw) ? $raw : [];
