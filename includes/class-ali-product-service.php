@@ -320,6 +320,12 @@ class Ali_Product_Service {
         if (!empty($meta['original_link'])) {
             $product->set_product_url($meta['original_link']);
         }
+        $featured_image_id = absint($input['featured_image_id'] ?? 0);
+        if ($featured_image_id > 0) {
+            $product->set_image_id($featured_image_id);
+        } elseif (isset($input['featured_image_id'])) {
+            $product->set_image_id(0);
+        }
         $product->save();
 
         $product_attrs = [];
