@@ -52,6 +52,11 @@ class Ali_Product_Service {
     }
 
     public function create_wc_product_from_api($product_id, $sku_id, $api1, $api2) {
+        $existing_sku_id = wc_get_product_id_by_sku((string) $sku_id);
+        if (!empty($existing_sku_id)) {
+            return new WP_Error('sku_exists', 'Produkt z tym SKU już istnieje (ID: ' . absint($existing_sku_id) . ').');
+        }
+
         $item_info = $api1['ae_item_info'] ?? [];
         $sku_rows = $this->normalize_affiliate_sku_rows($api1);
         $sku_info = $this->pick_sku_info($sku_rows, $sku_id);
@@ -131,6 +136,8 @@ class Ali_Product_Service {
         }
 
         update_post_meta($new_id, '_ali_import_data', $meta);
+        update_post_meta($new_id, '_ali_product_id', sanitize_text_field((string) $product_id));
+        update_post_meta($new_id, '_ali_sku_id', sanitize_text_field((string) $sku_id));
 
         $product_attrs = [];
         $position = 0;
@@ -152,6 +159,32 @@ class Ali_Product_Service {
         }
 
         return wc_get_product($new_id);
+    }
+
+    public function find_existing_product_id($product_id, $sku_id) {
+        $q = new WP_Query([
+            'post_type' => 'product',
+            'post_status' => ['publish', 'draft', 'pending', 'private'],
+            'posts_per_page' => 1,
+            'fields' => 'ids',
+            'meta_query' => [
+                'relation' => 'AND',
+                [
+                    'key' => '_ali_product_id',
+                    'value' => (string) $product_id,
+                ],
+                [
+                    'key' => '_ali_sku_id',
+                    'value' => (string) $sku_id,
+                ],
+            ],
+        ]);
+
+        if (!empty($q->posts[0])) {
+            return absint($q->posts[0]);
+        }
+
+        return 0;
     }
 
     private function build_default_tags($meta) {

@@ -77,14 +77,14 @@ class Ali_Admin_Edit_Page {
 
         $featured_id = $product->get_image_id();
         $featured_src = $featured_id ? wp_get_attachment_image_url($featured_id, 'medium') : '';
-        echo '<h3>Zdjęcie główne produktu (WooCommerce)</h3>';
+        echo '<h3>Obrazek produktu</h3>';
         echo '<input type="hidden" name="featured_image_id" id="featured_image_id" value="' . esc_attr((string) $featured_id) . '" />';
         echo '<div id="ali-featured-preview" style="margin:8px 0;">';
         if ($featured_src) {
             echo '<img src="' . esc_url($featured_src) . '" style="max-width:180px;height:auto;border:1px solid #dcdcde;padding:4px;background:#fff;" />';
         }
         echo '</div>';
-        echo '<p><button class="button" type="button" id="ali-choose-featured">Wybierz zdjęcie główne</button> <button class="button" type="button" id="ali-remove-featured">Usuń zdjęcie główne</button></p>';
+        echo '<p><a class="button" href="#" id="ali-choose-featured">Ustaw obrazek produktu</a> <a class="button" href="#" id="ali-remove-featured">Usuń obrazek produktu</a></p>';
 
         echo '<h2>Kategorie</h2>';
         $this->text_input_row('product_category', 'Ścieżka kategorii AliExpress', $meta['product_category'] ?? '');
@@ -145,20 +145,37 @@ class Ali_Admin_Edit_Page {
         echo '</form></div>';
         ?>
         <script>
-            if (typeof wp !== 'undefined' && wp.media) {
-                document.getElementById('ali-choose-featured')?.addEventListener('click', function(){
-                    var frame = wp.media({title: 'Wybierz zdjęcie', multiple: false, library: {type: 'image'}});
+            jQuery(function($){
+                var frame;
+                $('#ali-choose-featured').on('click', function(e){
+                    e.preventDefault();
+                    if (typeof wp === 'undefined' || !wp.media) {
+                        alert('Media library niedostępna.');
+                        return;
+                    }
+                    if (frame) {
+                        frame.open();
+                        return;
+                    }
+                    frame = wp.media({
+                        title: 'Ustaw obrazek produktu',
+                        button: { text: 'Ustaw obrazek produktu' },
+                        multiple: false,
+                        library: { type: 'image' }
+                    });
                     frame.on('select', function(){
-                        var a = frame.state().get('selection').first().toJSON();
-                        document.getElementById('featured_image_id').value = a.id;
-                        document.getElementById('ali-featured-preview').innerHTML = '<img src="' + a.url + '" style="max-width:180px;height:auto;border:1px solid #dcdcde;padding:4px;background:#fff;" />';
+                        var attachment = frame.state().get('selection').first().toJSON();
+                        $('#featured_image_id').val(attachment.id);
+                        $('#ali-featured-preview').html('<img src="' + attachment.url + '" style="max-width:180px;height:auto;border:1px solid #dcdcde;padding:4px;background:#fff;" />');
                     });
                     frame.open();
                 });
-            }
-            document.getElementById('ali-remove-featured')?.addEventListener('click', function(){
-                document.getElementById('featured_image_id').value = '';
-                document.getElementById('ali-featured-preview').innerHTML = '';
+
+                $('#ali-remove-featured').on('click', function(e){
+                    e.preventDefault();
+                    $('#featured_image_id').val('');
+                    $('#ali-featured-preview').html('');
+                });
             });
             document.querySelectorAll('.ali-suggested-tag').forEach(function(box){
                 box.addEventListener('change', function(){
