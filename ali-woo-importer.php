@@ -37,6 +37,7 @@ require_once __DIR__ . '/includes/class-ali-admin-add-page.php';
 require_once __DIR__ . '/includes/class-ali-admin-edit-page.php';
 require_once __DIR__ . '/includes/class-ali-ai-helper.php';
 require_once __DIR__ . '/includes/class-ali-admin-moderate-page.php';
+require_once __DIR__ . '/includes/class-ali-admin-settings-page.php';
 
 add_action('plugins_loaded', static function () {
     if (!class_exists('WooCommerce') || !class_exists('WC_Product_External')) {
@@ -49,6 +50,7 @@ add_action('plugins_loaded', static function () {
     $ai_helper = new Ali_AI_Helper();
 
     new Ali_Admin_Moderate_Page();
+    new Ali_Admin_Settings_Page();
     new Ali_Admin_Add_Page($service);
     new Ali_Admin_Edit_Page($service, $ai_helper);
 });

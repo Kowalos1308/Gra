@@ -8,8 +8,11 @@ class Ali_Api_Client {
     private const API_URL = 'https://api-sg.aliexpress.com/sync';
 
     public function call_affiliate_api($product_id, $sku_id) {
+        $affiliate_app_key = $this->get_setting('affiliate_app_key', defined('ALI_AFFILIATE_APP_KEY') ? ALI_AFFILIATE_APP_KEY : '');
+        $affiliate_app_secret = $this->get_setting('affiliate_app_secret', defined('ALI_AFFILATE_APP_SECRET') ? ALI_AFFILATE_APP_SECRET : '');
+
         $params = [
-            'app_key' => ALI_AFFILIATE_APP_KEY,
+            'app_key' => $affiliate_app_key,
             'method' => 'aliexpress.affiliate.product.sku.detail.get',
             'sign_method' => 'sha256',
             'timestamp' => (string) round(microtime(true) * 1000),
@@ -21,7 +24,7 @@ class Ali_Api_Client {
             'need_deliver_info' => 'Yes',
         ];
 
-        $json = $this->request($params, ALI_AFFILATE_APP_SECRET);
+        $json = $this->request($params, $affiliate_app_secret);
         if (is_wp_error($json)) {
             return $json;
         }
@@ -37,10 +40,14 @@ class Ali_Api_Client {
     }
 
     public function call_ds_product_api($product_id, $sku_id = '') {
+        $ds_app_key = $this->get_setting('ds_app_key', defined('ALI_APP_KEY') ? ALI_APP_KEY : '');
+        $ds_app_secret = $this->get_setting('ds_app_secret', defined('ALI_APP_SECRET') ? ALI_APP_SECRET : '');
+        $ds_session = $this->get_setting('ds_session', defined('ALI_SESSION') ? ALI_SESSION : '');
+
         $params = [
-            'app_key' => ALI_APP_KEY,
+            'app_key' => $ds_app_key,
             'method' => 'aliexpress.ds.product.get',
-            'session' => ALI_SESSION,
+            'session' => $ds_session,
             'sign_method' => 'sha256',
             'timestamp' => (string) round(microtime(true) * 1000),
             'product_id' => (string) $product_id,
@@ -54,7 +61,7 @@ class Ali_Api_Client {
             $params['sku_id'] = (string) $sku_id;
         }
 
-        $json = $this->request($params, ALI_APP_SECRET);
+        $json = $this->request($params, $ds_app_secret);
         if (is_wp_error($json)) {
             return $json;
         }
@@ -67,6 +74,17 @@ class Ali_Api_Client {
             ?? $json['result']
             ?? null;
         return is_array($result) ? $result : new WP_Error('ali_api2_payload', 'Brak danych API2');
+    }
+
+
+    private function get_setting($key, $default = '') {
+        $settings = get_option('ali_super_wtyka_settings', []);
+        if (!is_array($settings)) {
+            return $default;
+        }
+
+        $value = $settings[$key] ?? '';
+        return $value !== '' ? $value : $default;
     }
 
     private function request($params, $secret) {

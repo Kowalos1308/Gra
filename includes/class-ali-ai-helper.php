@@ -398,9 +398,14 @@ Opis ma być czysto informacyjny i SEO.";
     }
 
     private function send_to_groq($prompt) {
-        $api_key = defined('ALI_GROQ_API_KEY') ? ALI_GROQ_API_KEY : '';
+        $settings = get_option('ali_super_wtyka_settings', []);
+        $settings = is_array($settings) ? $settings : [];
+
+        $api_key = !empty($settings['ai_api_key']) ? (string) $settings['ai_api_key'] : (defined('ALI_GROQ_API_KEY') ? ALI_GROQ_API_KEY : '');
+        $model = !empty($settings['ai_model']) ? (string) $settings['ai_model'] : 'llama-3.3-70b-versatile';
+
         if (empty($api_key)) {
-            return new WP_Error('ali_ai_no_api_key', 'Brak klucza API Groq. Zdefiniuj ALI_GROQ_API_KEY.');
+            return new WP_Error('ali_ai_no_api_key', 'Brak klucza API Groq. Uzupełnij Ustawienia -> AI API Key.');
         }
 
         $response = wp_remote_post('https://api.groq.com/openai/v1/chat/completions', [
@@ -410,7 +415,7 @@ Opis ma być czysto informacyjny i SEO.";
                 'Content-Type' => 'application/json',
             ],
             'body' => wp_json_encode([
-                'model' => 'llama-3.3-70b-versatile',
+                'model' => $model,
                 'messages' => [
                     [
                         'role' => 'system',
