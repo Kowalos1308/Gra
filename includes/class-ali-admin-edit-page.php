@@ -132,9 +132,14 @@ class Ali_Admin_Edit_Page {
         }
         echo '</tbody></table>';
 
+        $detail_content = (string) ($meta['detail'] ?? '');
+        if ($detail_content === '') {
+            $detail_content = (string) $product->get_description();
+        }
+
         echo '<h2>Opis</h2>';
         wp_editor(
-            (string) ($meta['detail'] ?? ''),
+            $detail_content,
             'ali_detail_editor',
             [
                 'textarea_name' => 'detail',

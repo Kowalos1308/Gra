@@ -119,37 +119,64 @@ class Ali_AI_Helper {
                     if (!Array.isArray(attributes) || attributes.length === 0) {
                         return;
                     }
+
+                    const normalize = function(value) {
+                        return String(value || '').trim().toLowerCase();
+                    };
+                    const used = {};
+
                     $('input[name^="attrs["]').each(function(){
                         const nameMatch = $(this).attr('name').match(/^attrs\[(\d+)\]\[name\]$/);
                         if (!nameMatch) {
                             return;
                         }
-                        const i = nameMatch[1];
-                        const currentName = ($(this).val() || '').trim().toLowerCase();
+
+                        const i = parseInt(nameMatch[1], 10);
+                        const $name = $(this);
                         const $value = $('input[name="attrs[' + i + '][value]"]');
-                        const $row = $(this).closest('tr');
+                        const $row = $name.closest('tr');
+                        const currentName = normalize($name.val());
+                        const currentValue = normalize($value.val());
 
                         let found = null;
-                        attributes.forEach(function(attr) {
-                            if (found || !attr || !attr.name) {
-                                return;
-                            }
-                            const aiName = String(attr.name).trim().toLowerCase();
-                            if (aiName === currentName) {
-                                found = attr;
-                            }
-                        });
+
+                        if (attributes[i] && !used[i]) {
+                            found = attributes[i];
+                            used[i] = true;
+                        }
+
+                        if (!found) {
+                            attributes.forEach(function(attr, idx) {
+                                if (found || used[idx] || !attr) {
+                                    return;
+                                }
+                                const aiName = normalize(attr.name);
+                                const aiValue = normalize(attr.value);
+                                if ((aiName && aiName === currentName) || (aiValue && aiValue === currentValue)) {
+                                    found = attr;
+                                    used[idx] = true;
+                                }
+                            });
+                        }
 
                         if (!found) {
                             return;
                         }
 
-                        const translatedName = found.name || '';
-                        const translatedValue = found.value || '';
-                        $(this).val(translatedName);
-                        $row.find('td').eq(1).text(translatedName);
-                        $value.val(translatedValue);
-                        $row.find('td').eq(2).text(translatedValue);
+                        const translatedName = String(found.name || '').trim();
+                        const translatedValue = String(found.value || '').trim();
+                        if (!translatedName && !translatedValue) {
+                            return;
+                        }
+
+                        if (translatedName) {
+                            $name.val(translatedName);
+                            $row.find('td').eq(1).text(translatedName);
+                        }
+                        if (translatedValue) {
+                            $value.val(translatedValue);
+                            $row.find('td').eq(2).text(translatedValue);
+                        }
                     });
                 }
 
@@ -575,6 +602,9 @@ Opis ma być czysto informacyjny i SEO.";
                 }
                 if (preg_match('/^[\-•\*]\s*/u', $line)) {
                     $line = preg_replace('/^[\-•\*]\s*/u', '', $line);
+                }
+                if (preg_match('/^\d+[\.)]\s+/', $line)) {
+                    $line = preg_replace('/^\d+[\.)]\s+/', '', $line);
                 }
                 if (strpos($line, ':') !== false || strpos($line, ' - ') !== false) {
                     $parts = strpos($line, ':') !== false ? explode(':', $line, 2) : explode(' - ', $line, 2);
