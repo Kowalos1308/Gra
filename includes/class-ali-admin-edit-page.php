@@ -6,9 +6,11 @@ if (!defined('ABSPATH')) {
 
 class Ali_Admin_Edit_Page {
     private $service;
+    private $ai_helper;
 
-    public function __construct(Ali_Product_Service $service) {
+    public function __construct(Ali_Product_Service $service, Ali_AI_Helper $ai_helper) {
         $this->service = $service;
+        $this->ai_helper = $ai_helper;
         add_action('admin_menu', [$this, 'register_page']);
         add_action('admin_post_ali_save_product', [$this, 'handle_save_product']);
     }
@@ -49,6 +51,8 @@ class Ali_Admin_Edit_Page {
         wp_nonce_field('ali_save_product_nonce_' . $product_id);
         echo '<input type="hidden" name="action" value="ali_save_product" />';
         echo '<input type="hidden" name="product_id" value="' . esc_attr($product_id) . '" />';
+
+        $this->ai_helper->render_button($product_id);
 
         echo '<h2>Podstawowe</h2>';
         echo '<table class="form-table" role="presentation">';
