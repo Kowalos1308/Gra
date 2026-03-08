@@ -140,7 +140,12 @@ class Ali_Admin_Edit_Page {
                 'textarea_name' => 'detail',
                 'textarea_rows' => 12,
                 'media_buttons' => false,
-                'teeny' => true,
+                'teeny' => false,
+                'quicktags' => true,
+                'tinymce' => [
+                    'toolbar1' => 'formatselect,bold,italic,bullist,numlist,blockquote,link,unlink,undo,redo',
+                    'block_formats' => 'Akapit=p;Nagłówek 2=h2;Nagłówek 3=h3;Nagłówek 4=h4',
+                ],
             ]
         );
         echo '<p><label><input type="checkbox" name="detail_corrected" value="1" ' . checked(!empty($meta['detail_corrected']), true, false) . ' /> POPRAWIONO OPIS</label></p>';
@@ -179,6 +184,12 @@ class Ali_Admin_Edit_Page {
                     e.preventDefault();
                     $('#featured_image_id').val('');
                     $('#ali-featured-preview').html('');
+                });
+
+                $('form').on('submit', function(){
+                    if (typeof window.tinyMCE !== 'undefined' && window.tinyMCE.triggerSave) {
+                        window.tinyMCE.triggerSave();
+                    }
                 });
             });
             document.querySelectorAll('.ali-suggested-tag').forEach(function(box){

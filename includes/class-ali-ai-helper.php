@@ -52,33 +52,66 @@ class Ali_AI_Helper {
                 }
 
                 function applyCategories(data) {
-                    const names = [];
-                    if (data.main_category) {
-                        names.push(data.main_category);
-                    }
-                    if (data.sub_category) {
-                        names.push(data.sub_category);
+                    const normalized = function(value) {
+                        return String(value || '').trim().toLowerCase();
+                    };
+                    const pathMap = {};
+
+                    $('.categorychecklist input[type="checkbox"]').each(function() {
+                        const checkbox = this;
+                        const idMatch = checkbox.id ? checkbox.id.match(/in-product_cat-(\d+)/) : null;
+                        if (!idMatch) {
+                            return;
+                        }
+                        const termId = idMatch[1];
+                        const path = $(checkbox).closest('li').find('> label').text().replace(/\s+/g, ' ').trim();
+                        if (path) {
+                            pathMap[normalized(path)] = termId;
+                        }
+                    });
+
+                    const wanted = [];
+                    if (Array.isArray(data.category_paths)) {
+                        data.category_paths.forEach(function(path) {
+                            const key = normalized(path);
+                            if (key && pathMap[key]) {
+                                wanted.push(pathMap[key]);
+                            }
+                        });
                     }
 
-                    if (names.length === 0 && data.category) {
-                        const split = String(data.category).split('→').map(function(item){ return item.trim(); }).filter(Boolean);
-                        split.forEach(function(item){ names.push(item); });
-                    }
+                    const fallbackNames = [];
+                    if (wanted.length === 0) {
+                        if (data.main_category) {
+                            fallbackNames.push(data.main_category);
+                        }
+                        if (data.sub_category) {
+                            fallbackNames.push(data.sub_category);
+                        }
+                        if (fallbackNames.length === 0 && data.category) {
+                            String(data.category).split('→').map(function(item){ return item.trim(); }).filter(Boolean).forEach(function(item){ fallbackNames.push(item); });
+                        }
 
-                    if (names.length > 0) {
-                        $('input[name="tax_input[product_cat][]"]').prop('checked', false);
-                        names.forEach(function(name){
+                        fallbackNames.forEach(function(name){
+                            const target = normalized(name);
                             $('.categorychecklist label').each(function(){
-                                const label = $(this).text().trim();
-                                if (label === name) {
-                                    $(this).find('input[type="checkbox"]').prop('checked', true);
+                                const label = normalized($(this).text());
+                                if (label === target) {
+                                    const checkbox = $(this).find('input[type="checkbox"]');
+                                    const idMatch = checkbox.attr('id') ? checkbox.attr('id').match(/in-product_cat-(\d+)/) : null;
+                                    if (idMatch) {
+                                        wanted.push(idMatch[1]);
+                                    }
                                 }
                             });
                         });
                     }
 
-                    if (data.category) {
-                        $('#product_category').val(data.category);
+                    if (wanted.length > 0) {
+                        $('input[name="tax_input[product_cat][]"]').prop('checked', false);
+                        wanted.forEach(function(termId) {
+                            $('#in-product_cat-' + termId).prop('checked', true);
+                        });
                     }
                 }
 
@@ -86,19 +119,37 @@ class Ali_AI_Helper {
                     if (!Array.isArray(attributes) || attributes.length === 0) {
                         return;
                     }
-                    attributes.forEach(function(attr, index) {
-                        const i = index;
-                        const $name = $('input[name="attrs[' + i + '][name]"]');
+                    $('input[name^="attrs["]').each(function(){
+                        const nameMatch = $(this).attr('name').match(/^attrs\[(\d+)\]\[name\]$/);
+                        if (!nameMatch) {
+                            return;
+                        }
+                        const i = nameMatch[1];
+                        const currentName = ($(this).val() || '').trim().toLowerCase();
                         const $value = $('input[name="attrs[' + i + '][value]"]');
-                        const $row = $name.closest('tr');
-                        if ($name.length) {
-                            $name.val(attr.name || '');
-                            $row.find('td').eq(1).text(attr.name || '');
+                        const $row = $(this).closest('tr');
+
+                        let found = null;
+                        attributes.forEach(function(attr) {
+                            if (found || !attr || !attr.name) {
+                                return;
+                            }
+                            const aiName = String(attr.name).trim().toLowerCase();
+                            if (aiName === currentName) {
+                                found = attr;
+                            }
+                        });
+
+                        if (!found) {
+                            return;
                         }
-                        if ($value.length) {
-                            $value.val(attr.value || '');
-                            $row.find('td').eq(2).text(attr.value || '');
-                        }
+
+                        const translatedName = found.name || '';
+                        const translatedValue = found.value || '';
+                        $(this).val(translatedName);
+                        $row.find('td').eq(1).text(translatedName);
+                        $value.val(translatedValue);
+                        $row.find('td').eq(2).text(translatedValue);
                     });
                 }
 
@@ -458,6 +509,7 @@ Opis ma być czysto informacyjny i SEO.";
             'category' => '',
             'main_category' => '',
             'sub_category' => '',
+            'category_paths' => [],
             'attributes' => [],
             'description' => '',
         ];
@@ -521,15 +573,18 @@ Opis ma być czysto informacyjny i SEO.";
                     $current_section = 'description';
                     continue;
                 }
-                if (strpos($line, ':') !== false) {
-                    $parts = explode(':', $line, 2);
+                if (preg_match('/^[\-•\*]\s*/u', $line)) {
+                    $line = preg_replace('/^[\-•\*]\s*/u', '', $line);
+                }
+                if (strpos($line, ':') !== false || strpos($line, ' - ') !== false) {
+                    $parts = strpos($line, ':') !== false ? explode(':', $line, 2) : explode(' - ', $line, 2);
                     if (count($parts) === 2) {
-                        $name = trim($parts[0]);
-                        $value = trim($parts[1]);
+                        $name = trim((string) $parts[0]);
+                        $value = trim((string) $parts[1]);
                         if ($name !== '' && $value !== '') {
                             $result['attributes'][] = [
-                                'name' => $name,
-                                'value' => $value,
+                                'name' => sanitize_text_field($name),
+                                'value' => sanitize_text_field($value),
                             ];
                         }
                     }
@@ -559,6 +614,12 @@ Opis ma być czysto informacyjny i SEO.";
             $result['category'] = $result['sub_category'];
         }
 
+        $result['category_paths'] = $this->resolve_category_paths(
+            $result['main_category'],
+            $result['sub_category'],
+            $result['category']
+        );
+
         if (empty($result['title'])) {
             $result['title'] = $original_data['title'] ?? '';
         }
@@ -574,4 +635,52 @@ Opis ma być czysto informacyjny i SEO.";
 
         return $result;
     }
+
+
+    private function resolve_category_paths($main_category, $sub_category, $category_path) {
+        $selected = [];
+        $all_paths = $this->get_categories_hierarchical();
+
+        $normalize = static function ($value) {
+            return mb_strtolower(trim((string) $value));
+        };
+
+        $main_norm = $normalize($main_category);
+        $sub_norm = $normalize($sub_category);
+        $path_norm = $normalize($category_path);
+
+        foreach ($all_paths as $path) {
+            $path_parts = array_map('trim', explode('→', (string) $path));
+            $path_parts = array_values(array_filter($path_parts));
+            if (empty($path_parts)) {
+                continue;
+            }
+
+            $path_main = $normalize($path_parts[0]);
+            $path_sub = $normalize(end($path_parts));
+            $full_path = $normalize($path);
+
+            if ($path_norm !== '' && $full_path === $path_norm) {
+                $selected[] = trim((string) $path);
+                continue;
+            }
+
+            if ($main_norm !== '' && $sub_norm !== '' && $path_main === $main_norm && $path_sub === $sub_norm) {
+                $selected[] = trim((string) $path);
+                continue;
+            }
+
+            if ($sub_norm !== '' && $path_sub === $sub_norm) {
+                $selected[] = trim((string) $path);
+                continue;
+            }
+
+            if ($main_norm !== '' && count($path_parts) === 1 && $path_main === $main_norm) {
+                $selected[] = trim((string) $path);
+            }
+        }
+
+        return array_values(array_unique(array_filter($selected)));
+    }
+
 }
