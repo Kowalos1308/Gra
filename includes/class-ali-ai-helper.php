@@ -190,6 +190,12 @@ class Ali_AI_Helper {
                         product_id: <?php echo (int) $product_id; ?>,
                         title: $('#title').val() || '',
                         category: $('#product_category').val() || '',
+                        min_delivery_days: $('#min_delivery_days').val() || '',
+                        max_delivery_days: $('#max_delivery_days').val() || '',
+                        shipping_fees: $('#shipping_fees').val() || '',
+                        ship_from_country: $('#ship_from_country').val() || '',
+                        review_number: $('#review_number').val() || '',
+                        order_number: $('#order_number').val() || '',
                         description: getEditorContent(),
                         attributes: extractAttributes()
                     };
@@ -265,6 +271,12 @@ class Ali_AI_Helper {
         $product_data = [
             'title' => sanitize_text_field(wp_unslash($_POST['title'] ?? '')),
             'category' => sanitize_text_field(wp_unslash($_POST['category'] ?? '')),
+            'min_delivery_days' => sanitize_text_field(wp_unslash($_POST['min_delivery_days'] ?? '')),
+            'max_delivery_days' => sanitize_text_field(wp_unslash($_POST['max_delivery_days'] ?? '')),
+            'shipping_fees' => sanitize_text_field(wp_unslash($_POST['shipping_fees'] ?? '')),
+            'ship_from_country' => sanitize_text_field(wp_unslash($_POST['ship_from_country'] ?? '')),
+            'review_number' => sanitize_text_field(wp_unslash($_POST['review_number'] ?? '')),
+            'order_number' => sanitize_text_field(wp_unslash($_POST['order_number'] ?? '')),
             'attributes' => $attributes,
             'description_preview' => wp_kses_post(wp_unslash($_POST['description'] ?? '')),
         ];
@@ -327,6 +339,18 @@ class Ali_AI_Helper {
 
         $full_description = wp_strip_all_tags((string) ($product_data['description_preview'] ?? ''));
         $hierarchical_categories = isset($store_data['categories']) && is_array($store_data['categories']) ? $store_data['categories'] : [];
+        $delivery_info = [
+            'MIN CZAS DOSTAWY (dni)' => $product_data['min_delivery_days'] ?? '',
+            'MAKSYMALNY CZAS DOSTAWY (dni)' => $product_data['max_delivery_days'] ?? '',
+            'OPŁATA ZA DOSTAWĘ' => $product_data['shipping_fees'] ?? '',
+            'KRAJ WYSYŁKI' => $product_data['ship_from_country'] ?? '',
+            'LICZBA OPINII' => $product_data['review_number'] ?? '',
+            'SPRZEDANE SZTUKI' => $product_data['order_number'] ?? '',
+        ];
+        $delivery_text = "";
+        foreach ($delivery_info as $label => $value) {
+            $delivery_text .= $label . ': ' . ($value !== '' ? $value : 'Brak danych') . "\n";
+        }
 
         $prompt = "Jesteś TOP 1 ekspertem SEO i copywriterem w Polsce specjalizującym się w akcesoriach samochodowych z AliExpress.
 Twoje zadanie: ZOPTYMALIZUJ dane produktu pod polskie SEO.
@@ -416,6 +440,9 @@ KATEGORIA ORYGINALNA: {$product_data['category']}
 ATRYBUTY DO POPRAWY:
 {$attributes_text}
 
+DODATKOWE DANE LOGISTYCZNE I SPRZEDAŻOWE (wykorzystaj je w sekcji 📦):
+{$delivery_text}
+
 PEŁNY OPIS Z AliExpress (użyj TEGO do stworzenia nowego opisu):
 {$full_description}
 
@@ -456,7 +483,7 @@ STRUKTURA OPISU:
 <p>2-3 akapity wprowadzenia.</p>
 
 <h3>🔧 Specyfikacja techniczna</h3>
-<p>Weź wszystkie dane techniczne z oryginalnego opisu.</p>
+<p>Stwórz własny, spójny tekst techniczny na podstawie opisu i atrybutów. Nie kopiuj 1:1 i nie dopisuj fikcyjnych parametrów.</p>
 
 <h3>⭐ Zalety i korzyści</h3>
 <p>Wypunktuj dlaczego warto wybrać akurat ten produkt.</p>
@@ -465,9 +492,10 @@ STRUKTURA OPISU:
 <p>Dla jakich aut/modeli/urządzeń produkt jest przeznaczony.</p>
 
 <h3>📦 Zakup z AliExpress - co warto wiedzieć?</h3>
-<p>Informacje o dostawie, gwarancji, zwrotach przy zakupie z AliExpress.</p>
+<p>Koniecznie użyj podanych danych: min/maks czas dostawy, opłata za dostawę, kraj wysyłki, liczba opinii i sprzedane sztuki. Jeśli czegoś brakuje, napisz to wprost zamiast zgadywać.</p>
 
 PAMIĘTAJ: Produkt jest z AliExpress - w opisie podkreślaj aspekty: cena vs jakość, czas dostawy, opcje zwrotu, dostępność.
+NIE WYMYŚLAJ parametrów technicznych ani właściwości typu 'Wersja oprogramowania: Najnowsza wersja', jeśli nie wynikają z opisu/atrybutów.
 
 NIE DODAWAJ żadnych 'wezwań do działania', przycisków kup teraz, itp.
 Opis ma być czysto informacyjny i SEO.";
