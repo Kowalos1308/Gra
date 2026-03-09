@@ -13,7 +13,10 @@ class Ali_AI_Helper {
         $nonce = wp_create_nonce('ali_ai_edit_product_' . $product_id);
         ?>
         <div style="margin: 16px 0 8px;">
-            <button type="button" id="ali-ai-improve-btn" class="button button-primary">POPRAW AI</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="title">AI: Tytuł</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="categories">AI: Kategorie</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="attributes">AI: Atrybuty</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="description">AI: Opis</button>
             <span id="ali-ai-spinner" class="spinner" style="float:none;visibility:hidden;"></span>
             <div id="ali-ai-status" style="margin-top:10px;display:none;"></div>
         </div>
@@ -190,32 +193,33 @@ class Ali_AI_Helper {
                     });
                 }
 
-                $('#ali-ai-improve-btn').on('click', function() {
+                $('.ali-ai-improve-btn').on('click', function() {
+                    const mode = $(this).data('mode');
                     const $btn = $(this);
+                    const $allBtns = $('.ali-ai-improve-btn');
                     const $spinner = $('#ali-ai-spinner');
                     const $status = $('#ali-ai-status');
                     const payload = {
                         action: 'ali_ai_improve_product',
                         nonce: '<?php echo esc_js($nonce); ?>',
+                        mode: mode,
                         product_id: <?php echo (int) $product_id; ?>,
                         title: $('#title').val() || '',
+                        brand: $('#brand').val() || '',
                         category: $('#product_category').val() || '',
                         min_delivery_days: $('#min_delivery_days').val() || '',
                         max_delivery_days: $('#max_delivery_days').val() || '',
                         shipping_fees: $('#shipping_fees').val() || '',
                         ship_from_country: $('#ship_from_country').val() || '',
+                        product_score: $('#product_score').val() || '',
                         review_number: $('#review_number').val() || '',
                         order_number: $('#order_number').val() || '',
                         description: getEditorContent(),
                         attributes: extractAttributes()
                     };
 
-                    if (!payload.title.trim()) {
-                        alert('Wypełnij tytuł produktu.');
-                        return;
-                    }
-
-                    $btn.prop('disabled', true).text('AI pracuje...');
+                    $allBtns.prop('disabled', true);
+                    $btn.text('AI pracuje...');
                     $spinner.css('visibility', 'visible').addClass('is-active');
                     $status.hide().empty();
 
@@ -234,17 +238,26 @@ class Ali_AI_Helper {
                             if (data.description) {
                                 setEditorContent(data.description);
                             }
-                            applyCategories(data);
-                            applyAttributes(data.attributes || []);
+                            if (mode === 'categories') {
+                                applyCategories(data);
+                            }
+                            if (mode === 'attributes') {
+                                applyAttributes(data.attributes || []);
+                            }
 
-                            $status.html('<div class="notice notice-success inline"><p>AI poprawiło dane produktu.</p></div>').show();
+                            const labels = {title: 'tytuł', categories: 'kategorie', attributes: 'atrybuty', description: 'opis'};
+                            $status.html('<div class="notice notice-success inline"><p>AI poprawiło sekcję: ' + (labels[mode] || mode) + '.</p></div>').show();
                         })
                         .fail(function(xhr) {
                             const msg = xhr && xhr.responseJSON && xhr.responseJSON.data ? xhr.responseJSON.data : 'Błąd połączenia z AI.';
                             $status.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>').show();
                         })
                         .always(function() {
-                            $btn.prop('disabled', false).text('POPRAW AI');
+                            $allBtns.prop('disabled', false);
+                            $('.ali-ai-improve-btn[data-mode="title"]').text('AI: Tytuł');
+                            $('.ali-ai-improve-btn[data-mode="categories"]').text('AI: Kategorie');
+                            $('.ali-ai-improve-btn[data-mode="attributes"]').text('AI: Atrybuty');
+                            $('.ali-ai-improve-btn[data-mode="description"]').text('AI: Opis');
                             $spinner.css('visibility', 'hidden').removeClass('is-active');
                         });
                 });
@@ -281,17 +294,20 @@ class Ali_AI_Helper {
         $product_data = [
             'title' => sanitize_text_field(wp_unslash($_POST['title'] ?? '')),
             'category' => sanitize_text_field(wp_unslash($_POST['category'] ?? '')),
+            'brand' => sanitize_text_field(wp_unslash($_POST['brand'] ?? '')),
             'min_delivery_days' => sanitize_text_field(wp_unslash($_POST['min_delivery_days'] ?? '')),
             'max_delivery_days' => sanitize_text_field(wp_unslash($_POST['max_delivery_days'] ?? '')),
             'shipping_fees' => sanitize_text_field(wp_unslash($_POST['shipping_fees'] ?? '')),
             'ship_from_country' => sanitize_text_field(wp_unslash($_POST['ship_from_country'] ?? '')),
+            'product_score' => sanitize_text_field(wp_unslash($_POST['product_score'] ?? '')),
             'review_number' => sanitize_text_field(wp_unslash($_POST['review_number'] ?? '')),
             'order_number' => sanitize_text_field(wp_unslash($_POST['order_number'] ?? '')),
             'attributes' => $attributes,
             'description_preview' => wp_kses_post(wp_unslash($_POST['description'] ?? '')),
         ];
 
-        $response = $this->improve_product($product_data, ['categories' => $this->get_categories_hierarchical()]);
+        $mode = sanitize_key(wp_unslash($_POST['mode'] ?? ''));
+        $response = $this->improve_product($product_data, ['categories' => $this->get_categories_hierarchical()], $mode);
         if (is_wp_error($response)) {
             wp_send_json_error($response->get_error_message());
         }
@@ -299,15 +315,20 @@ class Ali_AI_Helper {
         wp_send_json_success($response);
     }
 
-    private function improve_product($product_data, $store_data) {
-        $prompt = $this->build_prompt($product_data, $store_data);
+    private function improve_product($product_data, $store_data, $mode) {
+        $allowed_modes = ['title', 'categories', 'attributes', 'description'];
+        if (!in_array($mode, $allowed_modes, true)) {
+            return new WP_Error('ali_ai_bad_mode', 'Nieprawidłowy tryb AI.');
+        }
+
+        $prompt = $this->build_prompt($product_data, $store_data, $mode);
         $response = $this->send_to_groq($prompt);
 
         if (is_wp_error($response)) {
             return $response;
         }
 
-        return $this->parse_ai_response($response, $product_data);
+        return $this->parse_ai_response_by_mode($response, $product_data, $mode);
     }
 
     private function get_categories_hierarchical() {
@@ -337,7 +358,7 @@ class Ali_AI_Helper {
         return $result;
     }
 
-    private function build_prompt($product_data, $store_data) {
+    private function build_prompt($product_data, $store_data, $mode) {
         $attributes_text = "";
         if (!empty($product_data['attributes'])) {
             foreach ($product_data['attributes'] as $attr) {
@@ -360,6 +381,105 @@ class Ali_AI_Helper {
         $delivery_text = "";
         foreach ($delivery_info as $label => $value) {
             $delivery_text .= $label . ': ' . ($value !== '' ? $value : 'Brak danych') . "\n";
+        }
+
+        if ($mode === 'title') {
+            return "Jesteś polskim specjalistą SEO e-commerce. Popraw tylko tytuł produktu.
+
+"
+                . "ZWRÓĆ DOKŁADNIE JEDNĄ LINIĘ:
+"
+                . "POPRAWIONY TYTUŁ: [tekst]
+
+"
+                . "DANE WEJŚCIOWE:
+"
+                . "TYTUŁ: {$product_data['title']}
+"
+                . "MARKA: " . ($product_data['brand'] ?: 'Brak danych') . "
+"
+                . "ŚCIEŻKA KATEGORII ALIEXPRESS: {$product_data['category']}
+
+"
+                . "ZASADY: max 70 znaków, naturalny język polski, bez lania wody.";
+        }
+
+        if ($mode === 'categories') {
+            return "Jesteś specjalistą kategoryzacji produktów WooCommerce.
+
+"
+                . "ZWRÓĆ DOKŁADNIE:
+"
+                . "GŁÓWNA: [dokładna nazwa kategorii z listy]
+"
+                . "PODKATEGORIA: [dokładna nazwa podkategorii z listy]
+
+"
+                . "DANE WEJŚCIOWE:
+"
+                . "TYTUŁ: {$product_data['title']}
+"
+                . "ŚCIEŻKA KATEGORII ALIEXPRESS: {$product_data['category']}
+
+"
+                . "LISTA KATEGORII SKLEPU (→ oznacza podkategorię):
+"
+                . implode("\n", $hierarchical_categories);
+        }
+
+        if ($mode === 'attributes') {
+            return "Jesteś redaktorem e-commerce PL. Popraw WSZYSTKIE atrybuty.
+
+"
+                . "ZWRÓĆ WYŁĄCZNIE LISTĘ W FORMACIE: NAZWA: WARTOŚĆ (jedna linia = jeden atrybut).
+"
+                . "Musisz zwrócić tyle samo pozycji, ile dostałeś na wejściu.
+"
+                . "Popraw polszczyznę, estetykę i SEO, nie tylko tłumaczenie dosłowne.
+
+"
+                . "ATRYBUTY WEJŚCIOWE:
+"
+                . $attributes_text;
+        }
+
+        if ($mode === 'description') {
+            return "Jesteś polskim copywriterem SEO e-commerce. Napisz lepszy opis HTML produktu.
+"
+                . "Styl: luźniejszy, mniej powtórzeń i mniej przesadnego zachwalania; skup się na realnych cechach produktu i konkretach.
+
+"
+                . "ZWRÓĆ DOKŁADNIE:
+ULEPSZONY OPIS: [HTML]
+
+"
+                . "DANE WEJŚCIOWE:
+"
+                . "TYTUŁ: {$product_data['title']}
+"
+                . "KRAJ WYSYŁKI: " . ($product_data['ship_from_country'] ?: 'Brak danych') . "
+"
+                . "MIN DNI DOSTAWY: " . ($product_data['min_delivery_days'] ?: 'Brak danych') . "
+"
+                . "MAX DNI DOSTAWY: " . ($product_data['max_delivery_days'] ?: 'Brak danych') . "
+"
+                . "KOSZT DOSTAWY: " . ($product_data['shipping_fees'] ?: 'Brak danych') . "
+"
+                . "OCENA PRODUKTU: " . ($product_data['product_score'] ?: 'Brak danych') . "
+"
+                . "LICZBA OPINII: " . ($product_data['review_number'] ?: 'Brak danych') . "
+"
+                . "SPRZEDANE SZTUKI: " . ($product_data['order_number'] ?: 'Brak danych') . "
+
+"
+                . "ATRYBUTY:
+" . $attributes_text . "
+"
+                . "OPIS WEJŚCIOWY:
+" . $full_description . "
+
+"
+                . "Sekcje: <h2>, kilka <h3>, listy punktowane. Bez fikcyjnych parametrów.";
         }
 
         $prompt = "Jesteś TOP 1 ekspertem SEO i copywriterem w Polsce specjalizującym się w akcesoriach samochodowych z AliExpress.
@@ -570,6 +690,54 @@ Opis ma być czysto informacyjny i SEO.";
         }
 
         return $data['choices'][0]['message']['content'];
+    }
+
+
+    private function parse_ai_response_by_mode($ai_response, $original_data, $mode) {
+        if ($mode === 'title') {
+            $title = '';
+            foreach (explode("\n", (string) $ai_response) as $line) {
+                $line = trim((string) $line);
+                if ($line === '') {
+                    continue;
+                }
+                if (preg_match('/POPRAWIONY\s+TYTUŁ\s*:\s*(.+)/i', $line, $m)) {
+                    $title = sanitize_text_field(trim((string) $m[1]));
+                    break;
+                }
+                if ($title === '') {
+                    $title = sanitize_text_field($line);
+                }
+            }
+
+            return ['title' => $title ?: ($original_data['title'] ?? '')];
+        }
+
+        if ($mode === 'categories') {
+            $parsed = $this->parse_ai_response($ai_response, $original_data);
+            return [
+                'category' => $parsed['category'] ?? ($original_data['category'] ?? ''),
+                'main_category' => $parsed['main_category'] ?? '',
+                'sub_category' => $parsed['sub_category'] ?? '',
+                'category_paths' => $parsed['category_paths'] ?? [],
+            ];
+        }
+
+        if ($mode === 'attributes') {
+            $parsed = $this->parse_ai_response($ai_response, $original_data);
+            return [
+                'attributes' => !empty($parsed['attributes']) ? $parsed['attributes'] : ($original_data['attributes'] ?? []),
+            ];
+        }
+
+        if ($mode === 'description') {
+            $parsed = $this->parse_ai_response($ai_response, $original_data);
+            return [
+                'description' => $parsed['description'] ?? ($original_data['description_preview'] ?? ''),
+            ];
+        }
+
+        return new WP_Error('ali_ai_bad_mode_parse', 'Nieobsługiwany tryb odpowiedzi AI.');
     }
 
     private function parse_ai_response($ai_response, $original_data) {
