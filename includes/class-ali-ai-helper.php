@@ -160,6 +160,16 @@ class Ali_AI_Helper {
                         }
 
                         if (!found) {
+                            attributes.forEach(function(attr, idx) {
+                                if (found || used[idx] || !attr) {
+                                    return;
+                                }
+                                found = attr;
+                                used[idx] = true;
+                            });
+                        }
+
+                        if (!found) {
                             return;
                         }
 
@@ -363,7 +373,7 @@ PRAWIDŁOWY FORMAT ODPOWIEDZI (NIC WIĘCEJ!):
 GŁÓWNA: [TUTAJ WPISZ DOKŁADNĄ NAZWĘ KATEGORII GŁÓWNEJ Z LISTY]
 PODKATEGORIA: [TUTAJ WPISZ DOKŁADNĄ NAZWĘ PODKATEGORII Z LISTY]
 
-3. POPRAWIONE ATRYBUTY:
+3. POPRAWIONE ATRYBUTY (OBOWIĄZKOWO WSZYSTKIE):
 NAZWA_ATRYBUTU: Wartość
 NAZWA_ATRYBUTU2: Wartość2
 
@@ -470,8 +480,11 @@ KROK 4: WYBIERZ KATEGORIE
 - UŻYJ DOKŁADNEJ NAZWY z listy
 
 KROK 5: POPRAW ATRYBUTY
-- Tłumacz chińskie/angielskie nazwy na polski
-- Używaj naturalnego języka
+- Popraw KAŻDY atrybut wejściowy (nie pomijaj żadnego, nawet jeśli jest ich >10)
+- Zachowaj tę samą liczbę pozycji co w wejściu
+- Tłumacz chińskie/angielskie nazwy i wartości na polski
+- Jeśli brzmienie jest brzydkie/stylistycznie słabe, popraw je na naturalny język e-commerce
+- Nie zostawiaj surowych, niezrozumiałych skrótów jeśli da się je doprecyzować
 
 KROK 6: NAPISZ OPIS
 - HTML, minimum 500 słów
@@ -495,6 +508,7 @@ STRUKTURA OPISU:
 <p>Koniecznie użyj podanych danych: min/maks czas dostawy, opłata za dostawę, kraj wysyłki, liczba opinii i sprzedane sztuki. Jeśli czegoś brakuje, napisz to wprost zamiast zgadywać.</p>
 
 PAMIĘTAJ: Produkt jest z AliExpress - w opisie podkreślaj aspekty: cena vs jakość, czas dostawy, opcje zwrotu, dostępność.
+W sekcji atrybutów oddaj WSZYSTKIE pozycje wejściowe i popraw je językowo, nie tylko tłumacz dosłownie.
 NIE WYMYŚLAJ parametrów technicznych ani właściwości typu 'Wersja oprogramowania: Najnowsza wersja', jeśli nie wynikają z opisu/atrybutów.
 
 NIE DODAWAJ żadnych 'wezwań do działania', przycisków kup teraz, itp.
@@ -622,13 +636,13 @@ Opis ma być czysto informacyjny i SEO.";
                 }
             }
 
-            if (preg_match('/^(3\.)?\s*POPRAWIONE\s+ATRYBUTY(?:\s+PRODUKTU)?\s*:?/i', $line)) {
+            if (preg_match('/^(3[\.)])?\s*POPRAWIONE\s+ATRYBUTY(?:\s+PRODUKTU)?(?:\s*\(OBOWIĄZKOWO\s+WSZYSTKIE\))?\s*:?/i', $line)) {
                 $current_section = 'attributes';
                 continue;
             }
 
             if ($current_section === 'attributes') {
-                if (preg_match('/^(4\.)?\s*ULEPSZONY OPIS:/i', $line)) {
+                if (preg_match('/^(4[\.)])?\s*ULEPSZONY\s+OPIS\s*:/i', $line)) {
                     $current_section = 'description';
                     continue;
                 }
@@ -654,9 +668,9 @@ Opis ma być czysto informacyjny i SEO.";
                 continue;
             }
 
-            if (preg_match('/^(4\.)?\s*ULEPSZONY OPIS:/i', $line)) {
+            if (preg_match('/^(4[\.)])?\s*ULEPSZONY\s+OPIS\s*:/i', $line)) {
                 $current_section = 'description';
-                $desc = preg_replace('/^(4\.)?\s*ULEPSZONY OPIS:\s*/i', '', $line);
+                $desc = preg_replace('/^(4[\.)])?\s*ULEPSZONY\s+OPIS\s*:\s*/i', '', $line);
                 if (!empty($desc) && $desc !== $line) {
                     $result['description'] .= $desc . "\n";
                 }
