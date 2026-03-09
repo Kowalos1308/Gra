@@ -408,11 +408,13 @@ class Ali_AI_Helper {
             return "Jesteś specjalistą kategoryzacji produktów WooCommerce.
 
 "
-                . "ZWRÓĆ DOKŁADNIE:
+                . "ZWRÓĆ DOKŁADNIE W TYM FORMACIE (bez dodatkowego tekstu):
 "
                 . "GŁÓWNA: [dokładna nazwa kategorii z listy]
 "
                 . "PODKATEGORIA: [dokładna nazwa podkategorii z listy]
+"
+                . "ŚCIEŻKA: [Główna → Podkategoria]
 
 "
                 . "DANE WEJŚCIOWE:
@@ -432,6 +434,8 @@ class Ali_AI_Helper {
 
 "
                 . "ZWRÓĆ WYŁĄCZNIE LISTĘ W FORMACIE: NAZWA: WARTOŚĆ (jedna linia = jeden atrybut).
+"
+                . "NIE numeruj linii, NIE dodawaj nagłówków, NIE dodawaj komentarzy.
 "
                 . "Musisz zwrócić tyle samo pozycji, ile dostałeś na wejściu.
 "
@@ -714,19 +718,22 @@ Opis ma być czysto informacyjny i SEO.";
         }
 
         if ($mode === 'categories') {
-            $parsed = $this->parse_ai_response($ai_response, $original_data);
+            $parsed = $this->parse_categories_mode_response($ai_response, $original_data);
             return [
-                'category' => $parsed['category'] ?? ($original_data['category'] ?? ''),
-                'main_category' => $parsed['main_category'] ?? '',
-                'sub_category' => $parsed['sub_category'] ?? '',
-                'category_paths' => $parsed['category_paths'] ?? [],
+                'category' => $parsed['category'],
+                'main_category' => $parsed['main_category'],
+                'sub_category' => $parsed['sub_category'],
+                'category_paths' => $parsed['category_paths'],
             ];
         }
 
         if ($mode === 'attributes') {
-            $parsed = $this->parse_ai_response($ai_response, $original_data);
+            $parsed_attributes = $this->parse_attributes_mode_response($ai_response);
+            if (empty($parsed_attributes)) {
+                $parsed_attributes = $original_data['attributes'] ?? [];
+            }
             return [
-                'attributes' => !empty($parsed['attributes']) ? $parsed['attributes'] : ($original_data['attributes'] ?? []),
+                'attributes' => $parsed_attributes,
             ];
         }
 
@@ -738,6 +745,104 @@ Opis ma być czysto informacyjny i SEO.";
         }
 
         return new WP_Error('ali_ai_bad_mode_parse', 'Nieobsługiwany tryb odpowiedzi AI.');
+    }
+
+
+    private function parse_categories_mode_response($ai_response, $original_data) {
+        $main_category = '';
+        $sub_category = '';
+        $category = '';
+
+        foreach (explode("\n", (string) $ai_response) as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+
+            $line = preg_replace('/^#{1,6}\s*/u', '', $line);
+            $line = preg_replace('/^\*\*(.+)\*\*$/u', '$1', $line);
+
+            if (preg_match('/GŁÓWNA\s*:\s*(.+)/iu', $line, $m)) {
+                $main_category = sanitize_text_field(trim((string) $m[1]));
+                continue;
+            }
+            if (preg_match('/PODKATEGORIA\s*:\s*(.+)/iu', $line, $m)) {
+                $sub_category = sanitize_text_field(trim((string) $m[1]));
+                continue;
+            }
+            if (preg_match('/ŚCIEŻKA\s*:\s*(.+)/iu', $line, $m)) {
+                $category = sanitize_text_field(trim((string) $m[1]));
+                continue;
+            }
+
+            if ($category === '' && strpos($line, '→') !== false) {
+                $category = sanitize_text_field($line);
+            }
+        }
+
+        if ($category === '' && $main_category !== '' && $sub_category !== '') {
+            $category = $main_category . ' → ' . $sub_category;
+        }
+        if ($category === '' && $main_category !== '') {
+            $category = $main_category;
+        }
+
+        if ($main_category === '' && !empty($original_data['category'])) {
+            $main_category = sanitize_text_field((string) $original_data['category']);
+        }
+        if ($category === '') {
+            $category = sanitize_text_field((string) ($original_data['category'] ?? ''));
+        }
+
+        $category_paths = $this->resolve_category_paths($main_category, $sub_category, $category);
+
+        return [
+            'category' => $category,
+            'main_category' => $main_category,
+            'sub_category' => $sub_category,
+            'category_paths' => $category_paths,
+        ];
+    }
+
+    private function parse_attributes_mode_response($ai_response) {
+        $result = [];
+        foreach (explode("\n", (string) $ai_response) as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+
+            $line = preg_replace('/^#{1,6}\s*/u', '', $line);
+            $line = preg_replace('/^\*\*(.+)\*\*$/u', '$1', $line);
+            $line = preg_replace('/^[\-•\*]\s*/u', '', $line);
+            $line = preg_replace('/^\d+[\.)]\s*/u', '', $line);
+
+            if (stripos($line, 'ATRYBUT') !== false && strpos($line, ':') === false) {
+                continue;
+            }
+
+            if (strpos($line, ':') === false) {
+                continue;
+            }
+
+            $parts = explode(':', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $name = sanitize_text_field(trim((string) $parts[0]));
+            $value = sanitize_text_field(trim((string) $parts[1]));
+            if ($name === '' || $value === '') {
+                continue;
+            }
+
+            $result[] = [
+                'name' => $name,
+                'value' => $value,
+            ];
+        }
+
+        return $result;
     }
 
     private function parse_ai_response($ai_response, $original_data) {
