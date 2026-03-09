@@ -122,13 +122,13 @@ class Ali_Admin_Edit_Page {
         echo '<p><button class="button" type="button" id="ali-select-all">Zaznacz wszystkie</button> <button class="button" type="button" id="ali-unselect-all">Odznacz wszystkie</button></p>';
         echo '<table class="widefat striped"><thead><tr><th>Dodaj</th><th>Nazwa</th><th>Wartość</th></tr></thead><tbody>';
         foreach ($attrs as $i => $attr) {
+            $attr_name = (string) ($attr['name'] ?? '');
+            $attr_value = (string) ($attr['value'] ?? '');
             echo '<tr>';
             echo '<td><input class="ali-attr-check" type="checkbox" name="attrs[' . esc_attr($i) . '][selected]" value="1" ' . checked(!empty($attr['selected']), true, false) . ' /></td>';
-            echo '<td>' . esc_html($attr['name'] ?? '') . '</td>';
-            echo '<td>' . esc_html($attr['value'] ?? '') . '</td>';
+            echo '<td><span class="ali-attr-name-display">' . esc_html($attr_name) . '</span><input type="hidden" name="attrs[' . esc_attr($i) . '][name]" value="' . esc_attr($attr_name) . '" /></td>';
+            echo '<td><span class="ali-attr-value-display">' . esc_html($attr_value) . '</span><input type="hidden" name="attrs[' . esc_attr($i) . '][value]" value="' . esc_attr($attr_value) . '" /></td>';
             echo '</tr>';
-            echo '<input type="hidden" name="attrs[' . esc_attr($i) . '][name]" value="' . esc_attr($attr['name'] ?? '') . '" />';
-            echo '<input type="hidden" name="attrs[' . esc_attr($i) . '][value]" value="' . esc_attr($attr['value'] ?? '') . '" />';
         }
         echo '</tbody></table>';
 

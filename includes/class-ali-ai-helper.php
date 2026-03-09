@@ -171,11 +171,11 @@ class Ali_AI_Helper {
 
                         if (translatedName) {
                             $name.val(translatedName);
-                            $row.find('td').eq(1).text(translatedName);
+                            $row.find('.ali-attr-name-display').text(translatedName);
                         }
                         if (translatedValue) {
                             $value.val(translatedValue);
-                            $row.find('td').eq(2).text(translatedValue);
+                            $row.find('.ali-attr-value-display').text(translatedValue);
                         }
                     });
                 }
@@ -555,6 +555,10 @@ Opis ma być czysto informacyjny i SEO.";
                 continue;
             }
 
+            $line = preg_replace('/^#{1,6}\s*/u', '', $line);
+            $line = preg_replace('/^\*\*(.+)\*\*$/u', '$1', $line);
+            $line = preg_replace('/^__(.+)__$/u', '$1', $line);
+
             if (strpos($line, 'POPRAWIONY TYTUŁ') !== false) {
                 $current_section = 'title';
                 $title_line = preg_replace('/^(1\.\s*)?POPRAWIONY\s+TYTUŁ:\s*/i', '', $line);
@@ -590,7 +594,7 @@ Opis ma być czysto informacyjny i SEO.";
                 }
             }
 
-            if (preg_match('/^(3\.)?\s*POPRAWIONE ATRYBUTY:/i', $line)) {
+            if (preg_match('/^(3\.)?\s*POPRAWIONE\s+ATRYBUTY(?:\s+PRODUKTU)?\s*:?/i', $line)) {
                 $current_section = 'attributes';
                 continue;
             }
