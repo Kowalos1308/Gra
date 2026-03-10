@@ -360,6 +360,7 @@ class Ali_AI_Helper {
         }
 
         $prompt = $this->build_prompt($product_data, $store_data, $mode);
+        $this->log_ai_prompt($mode, $prompt, $product_data);
         $response = $this->send_to_groq($prompt);
 
         if (is_wp_error($response)) {
@@ -367,6 +368,17 @@ class Ali_AI_Helper {
         }
 
         return $this->parse_ai_response_by_mode($response, $product_data, $mode);
+    }
+
+    private function log_ai_prompt($mode, $prompt, $product_data) {
+        $context = [
+            'mode' => sanitize_key((string) $mode),
+            'product_title' => sanitize_text_field((string) ($product_data['title'] ?? '')),
+            'timestamp' => gmdate('c'),
+            'prompt' => (string) $prompt,
+        ];
+
+        error_log('[ALI_AI_PROMPT] ' . wp_json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
     private function get_categories_hierarchical() {
@@ -436,35 +448,20 @@ class Ali_AI_Helper {
 "
                 . "MARKA: " . ($product_data['brand'] ?: 'Brak danych') . "
 "
-                . "ŚCIEŻKA KATEGORII ALIEXPRESS: {$product_data['category']}
-
-"
-                . "ZASADY: max 70 znaków, naturalny język polski, bez lania wody.";
+                                . "ZASADY: max 70 znaków, naturalny język polski, bez lania wody.";
         }
 
         if ($mode === 'categories') {
-            return "Jesteś specjalistą kategoryzacji produktów WooCommerce.
-
-"
-                . "ZWRÓĆ DOKŁADNIE W TYM FORMACIE (bez dodatkowego tekstu):
-"
-                . "GŁÓWNA: [dokładna nazwa kategorii z listy]
-"
-                . "PODKATEGORIA: [dokładna nazwa podkategorii z listy]
-"
-                . "ŚCIEŻKA: [Główna → Podkategoria]
-
-"
-                . "DANE WEJŚCIOWE:
-"
-                . "TYTUŁ: {$product_data['title']}
-"
-                . "ŚCIEŻKA KATEGORII ALIEXPRESS: {$product_data['category']}
-
-"
-                . "LISTA KATEGORII SKLEPU (→ oznacza podkategorię):
-"
-                . implode("\n", $hierarchical_categories);
+            return "Jesteś specjalistą kategoryzacji produktów WooCommerce.\n\n"
+                . "ZWRÓĆ DOKŁADNIE W TYM FORMACIE (bez dodatkowego tekstu):\n"
+                . "GŁÓWNA: [dokładna nazwa kategorii z listy]\n"
+                . "PODKATEGORIA: [dokładna nazwa podkategorii z listy]\n"
+                . "ID: [np. 12,34]\n\n"
+                . "DANE WEJŚCIOWE:\n"
+                . "TYTUŁ: {$product_data['title']}\n\n"
+                . "LISTA KATEGORII SKLEPU (ID | ŚCIEŻKA):\n"
+                . implode("\n", $hierarchical_categories)
+                . "\n\nWybierz kategorie WYŁĄCZNIE z tej listy.";
         }
 
         if ($mode === 'attributes') {
@@ -786,7 +783,6 @@ Opis ma być czysto informacyjny i SEO.";
         return new WP_Error('ali_ai_bad_mode_parse', 'Nieobsługiwany tryb odpowiedzi AI.');
     }
 
-
     private function parse_categories_mode_response($ai_response, $original_data) {
         $main_category = '';
         $sub_category = '';
@@ -809,10 +805,6 @@ Opis ma być czysto informacyjny i SEO.";
             }
             if (preg_match('/PODKATEGORIA\s*:\s*(.+)/iu', $line, $m)) {
                 $sub_category = sanitize_text_field(trim((string) $m[1]));
-                continue;
-            }
-            if (preg_match('/ŚCIEŻKA\s*:\s*(.+)/iu', $line, $m)) {
-                $category = sanitize_text_field(trim((string) $m[1]));
                 continue;
             }
             if (preg_match('/\bID\s*:\s*([0-9,\s]+)/iu', $line, $m)) {
@@ -838,9 +830,6 @@ Opis ma być czysto informacyjny i SEO.";
             $category = $main_category;
         }
 
-        if ($main_category === '' && !empty($original_data['category'])) {
-            $main_category = sanitize_text_field((string) $original_data['category']);
-        }
         if ($category === '') {
             $category = sanitize_text_field((string) ($original_data['category'] ?? ''));
         }
