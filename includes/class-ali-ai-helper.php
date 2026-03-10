@@ -487,10 +487,9 @@ class Ali_AI_Helper {
                 . "ZWRÓĆ DOKŁADNIE W TYM FORMACIE (bez dodatkowego tekstu):\n"
                 . "GŁÓWNA: [dokładna nazwa kategorii z listy]\n"
                 . "PODKATEGORIA: [dokładna nazwa podkategorii z listy]\n"
-                . "ID: [np. 12,34]\n\n"
-                . "DANE WEJŚCIOWE:\n"
+                                . "DANE WEJŚCIOWE:\n"
                 . "TYTUŁ: {$product_data['title']}\n\n"
-                . "LISTA KATEGORII SKLEPU (ID | ŚCIEŻKA):\n"
+                . "LISTA KATEGORII SKLEPU (ŚCIEŻKA):\n"
                 . implode("\n", $hierarchical_categories)
                 . "\n\nWybierz kategorie WYŁĄCZNIE z tej listy.";
         }
@@ -890,9 +889,6 @@ Opis ma być czysto informacyjny i SEO.";
             $category = $main_category;
         }
 
-        if ($category === '') {
-            $category = sanitize_text_field((string) ($original_data['category'] ?? ''));
-        }
 
         $category_paths = $this->resolve_category_paths($main_category, $sub_category, $category);
         if (empty($category_ids) && !empty($category_paths)) {
@@ -1162,6 +1158,10 @@ Opis ma być czysto informacyjny i SEO.";
         $main_norm = $normalize($main_category);
         $sub_norm = $normalize($sub_category);
         $path_norm = $normalize($category_path);
+        $path_parts_norm = [];
+        if ($path_norm !== '') {
+            $path_parts_norm = array_map($normalize, array_values(array_filter(array_map('trim', explode('→', $category_path)))));
+        }
 
         foreach ($all_paths as $path) {
             $path_parts = array_map('trim', explode('→', (string) $path));
@@ -1177,6 +1177,15 @@ Opis ma być czysto informacyjny i SEO.";
             if ($path_norm !== '' && $full_path === $path_norm) {
                 $selected[] = trim((string) $path);
                 continue;
+            }
+
+            if (!empty($path_parts_norm) && count($path_parts_norm) > 1) {
+                $path_first = $path_parts_norm[0];
+                $path_last = $path_parts_norm[count($path_parts_norm) - 1];
+                if ($path_main === $path_first && $path_sub === $path_last) {
+                    $selected[] = trim((string) $path);
+                    continue;
+                }
             }
 
             if ($main_norm !== '' && $sub_norm !== '' && $path_main === $main_norm && $path_sub === $sub_norm) {
