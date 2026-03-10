@@ -292,6 +292,114 @@ class Ali_Product_Service {
         return sanitize_textarea_field(trim((string) $text));
     }
 
+
+    public function import_featured_image_from_choice($product_id, $input) {
+        $product = wc_get_product($product_id);
+        if (!$product) {
+            return new WP_Error('no_product', 'Produkt nie istnieje.');
+        }
+
+        $meta = get_post_meta($product_id, '_ali_import_data', true);
+        $meta = is_array($meta) ? $meta : [];
+
+        $image_choice = sanitize_key((string) ($input['image_choice'] ?? ($meta['image_choice'] ?? 'image_link')));
+        if (!in_array($image_choice, ['image_link', 'image_white'], true)) {
+            $image_choice = 'image_link';
+        }
+
+        $image_link = esc_url_raw((string) ($input['image_link'] ?? ($meta['image_link'] ?? '')));
+        $image_white = esc_url_raw((string) ($input['image_white'] ?? ($meta['image_white'] ?? '')));
+        $image_url = $image_choice === 'image_white' ? $image_white : $image_link;
+
+        if ($image_url === '') {
+            return new WP_Error('no_image_url', 'Brak linku obrazka dla wybranej opcji.');
+        }
+
+        $title = sanitize_text_field((string) ($input['title'] ?? $product->get_name()));
+        $attachment_id = $this->import_image_from_url($image_url, $product_id, $title);
+        if (is_wp_error($attachment_id)) {
+            return $attachment_id;
+        }
+
+        $this->apply_attachment_seo($attachment_id, $title);
+        $product->set_image_id($attachment_id);
+        $product->save();
+
+        return [
+            'attachment_id' => $attachment_id,
+            'image_url' => wp_get_attachment_image_url($attachment_id, 'medium') ?: wp_get_attachment_url($attachment_id),
+        ];
+    }
+
+    private function import_image_from_url($image_url, $product_id, $title) {
+        if (!function_exists('download_url')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        if (!function_exists('media_handle_sideload')) {
+            require_once ABSPATH . 'wp-admin/includes/media.php';
+        }
+        if (!function_exists('wp_generate_attachment_metadata')) {
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+        }
+
+        $temp_file = download_url($image_url, 45);
+        if (is_wp_error($temp_file)) {
+            return new WP_Error('image_download_failed', 'Nie udało się pobrać obrazka: ' . $temp_file->get_error_message());
+        }
+
+        $path = wp_parse_url($image_url, PHP_URL_PATH);
+        $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+        if ($ext === '') {
+            $ext = 'jpg';
+        }
+
+        $file_array = [
+            'name' => $this->build_seo_image_name($title) . '.' . $ext,
+            'tmp_name' => $temp_file,
+        ];
+
+        $attachment_id = media_handle_sideload($file_array, $product_id, $title);
+        if (is_wp_error($attachment_id)) {
+            @unlink($temp_file);
+            return new WP_Error('image_import_failed', 'Nie udało się zaimportować obrazka: ' . $attachment_id->get_error_message());
+        }
+
+        return absint($attachment_id);
+    }
+
+    private function build_seo_image_name($title) {
+        $base = sanitize_title(str_replace('.', '', (string) $title));
+        $base = trim((string) $base, '-');
+        if ($base === '') {
+            $base = 'produkt';
+        }
+        if (substr($base, -11) !== '-aliexpress') {
+            $base .= '-aliexpress';
+        }
+
+        return $base;
+    }
+
+    private function apply_attachment_seo($attachment_id, $title) {
+        $attachment_id = absint($attachment_id);
+        if ($attachment_id <= 0) {
+            return;
+        }
+
+        $clean_title = sanitize_text_field((string) $title);
+        if ($clean_title === '') {
+            return;
+        }
+
+        update_post_meta($attachment_id, '_wp_attachment_image_alt', $clean_title);
+
+        wp_update_post([
+            'ID' => $attachment_id,
+            'post_title' => $clean_title,
+            'post_name' => $this->build_seo_image_name($clean_title),
+        ]);
+    }
+
     public function save_edited_product($product_id, $input) {
         $product = wc_get_product($product_id);
         if (!$product) {
@@ -317,7 +425,7 @@ class Ali_Product_Service {
         $meta['review_number'] = sanitize_text_field((string) ($input['review_number'] ?? ($meta['review_number'] ?? '')));
         $meta['order_number'] = sanitize_text_field((string) ($input['order_number'] ?? ($meta['order_number'] ?? '')));
         $meta['store_name'] = sanitize_text_field((string) ($input['store_name'] ?? ($meta['store_name'] ?? '')));
-        $meta['detail'] = sanitize_textarea_field((string) ($input['detail'] ?? ''));
+        $meta['detail'] = wp_kses_post((string) ($input['detail'] ?? ''));
         $meta['detail_corrected'] = !empty($input['detail_corrected']);
 
         $image_choice = sanitize_key((string) ($input['image_choice'] ?? 'image_link'));
@@ -353,6 +461,9 @@ class Ali_Product_Service {
         if (!empty($meta['original_link'])) {
             $product->set_product_url($meta['original_link']);
         }
+        if (!empty($meta['detail'])) {
+            $product->set_description((string) $meta['detail']);
+        }
         $featured_image_id = absint($input['featured_image_id'] ?? 0);
         if ($featured_image_id > 0) {
             $product->set_image_id($featured_image_id);
@@ -360,6 +471,10 @@ class Ali_Product_Service {
             $product->set_image_id(0);
         }
         $product->save();
+
+        if ($featured_image_id > 0) {
+            $this->apply_attachment_seo($featured_image_id, $title !== '' ? $title : (string) $product->get_name());
+        }
 
         $product_attrs = [];
         $pos = 0;

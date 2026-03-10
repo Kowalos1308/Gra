@@ -13,9 +13,13 @@ class Ali_AI_Helper {
         $nonce = wp_create_nonce('ali_ai_edit_product_' . $product_id);
         ?>
         <div style="margin: 16px 0 8px;">
-            <button type="button" id="ali-ai-improve-btn" class="button button-primary">POPRAW AI</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="title">AI: Tytuł</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="categories">AI: Kategorie</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="attributes">AI: Atrybuty</button>
+            <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="description">AI: Opis</button>
             <span id="ali-ai-spinner" class="spinner" style="float:none;visibility:hidden;"></span>
             <div id="ali-ai-status" style="margin-top:10px;display:none;"></div>
+            <div id="ali-ai-debug" style="margin-top:10px;display:none;"><p><strong>Debug promptu AI:</strong></p><pre style="max-height:260px;overflow:auto;background:#fff;border:1px solid #dcdcde;padding:8px;white-space:pre-wrap;"></pre></div>
         </div>
         <script>
             jQuery(function($) {
@@ -51,34 +55,113 @@ class Ali_AI_Helper {
                     return $('#ali_detail_editor').val() || '';
                 }
 
+
+                function collectStoreCategories() {
+                    const rows = [];
+                    $('.categorychecklist input[type="checkbox"]').each(function() {
+                        const checkbox = this;
+                        const idMatch = checkbox.id ? checkbox.id.match(/in-product_cat-(\d+)/) : null;
+                        if (!idMatch) {
+                            return;
+                        }
+                        const termId = idMatch[1];
+                        const names = [];
+                        $(checkbox).closest('li').parents('li').get().reverse().forEach(function(parentLi) {
+                            const parentLabel = $(parentLi).find('> label').first().text().replace(/\s+/g, ' ').trim();
+                            if (parentLabel) {
+                                names.push(parentLabel);
+                            }
+                        });
+                        const ownLabel = $(checkbox).closest('li').find('> label').first().text().replace(/\s+/g, ' ').trim();
+                        if (ownLabel) {
+                            names.push(ownLabel);
+                        }
+                        const path = names.join(' → ');
+                        rows.push({id: termId, path: path || ownLabel});
+                    });
+                    return rows;
+                }
+
                 function applyCategories(data) {
-                    const names = [];
-                    if (data.main_category) {
-                        names.push(data.main_category);
-                    }
-                    if (data.sub_category) {
-                        names.push(data.sub_category);
-                    }
+                    const normalized = function(value) {
+                        return String(value || '').trim().toLowerCase();
+                    };
+                    const pathMap = {};
+                    const availableIds = {};
 
-                    if (names.length === 0 && data.category) {
-                        const split = String(data.category).split('→').map(function(item){ return item.trim(); }).filter(Boolean);
-                        split.forEach(function(item){ names.push(item); });
-                    }
+                    $('.categorychecklist input[type="checkbox"]').each(function() {
+                        const checkbox = this;
+                        const idMatch = checkbox.id ? checkbox.id.match(/product_cat-(\d+)/) : null;
+                        if (!idMatch) {
+                            return;
+                        }
+                        const termId = idMatch[1];
+                        availableIds[termId] = true;
 
-                    if (names.length > 0) {
-                        $('input[name="tax_input[product_cat][]"]').prop('checked', false);
-                        names.forEach(function(name){
-                            $('.categorychecklist label').each(function(){
-                                const label = $(this).text().trim();
-                                if (label === name) {
-                                    $(this).find('input[type="checkbox"]').prop('checked', true);
-                                }
-                            });
+                        const names = [];
+                        $(checkbox).closest('li').parents('li').get().reverse().forEach(function(parentLi) {
+                            const parentLabel = $(parentLi).find('> label').first().text().replace(/\s+/g, ' ').trim();
+                            if (parentLabel) {
+                                names.push(parentLabel);
+                            }
+                        });
+                        const ownLabel = $(checkbox).closest('li').find('> label').first().text().replace(/\s+/g, ' ').trim();
+                        if (ownLabel) {
+                            names.push(ownLabel);
+                            pathMap[normalized(ownLabel)] = termId;
+                        }
+
+                        const fullPath = names.join(' → ');
+                        if (fullPath) {
+                            pathMap[normalized(fullPath)] = termId;
+                        }
+                    });
+
+                    const wanted = [];
+                    if (Array.isArray(data.category_ids)) {
+                        data.category_ids.forEach(function(termId) {
+                            const clean = String(termId || '').replace(/\D+/g, '');
+                            if (clean && availableIds[clean]) {
+                                wanted.push(clean);
+                            }
                         });
                     }
 
-                    if (data.category) {
-                        $('#product_category').val(data.category);
+                    if (wanted.length === 0 && Array.isArray(data.category_paths)) {
+                        data.category_paths.forEach(function(path) {
+                            const key = normalized(path);
+                            if (key && pathMap[key]) {
+                                wanted.push(pathMap[key]);
+                            }
+                        });
+                    }
+
+                    const fallbackNames = [];
+                    if (wanted.length === 0) {
+                        if (data.main_category) {
+                            fallbackNames.push(data.main_category);
+                        }
+                        if (data.sub_category) {
+                            fallbackNames.push(data.sub_category);
+                        }
+                        if (fallbackNames.length === 0 && data.category) {
+                            String(data.category).split('→').map(function(item){ return item.trim(); }).filter(Boolean).forEach(function(item){ fallbackNames.push(item); });
+                        }
+
+                        fallbackNames.forEach(function(name){
+                            const target = normalized(name);
+                            if (pathMap[target]) {
+                                wanted.push(pathMap[target]);
+                            }
+                        });
+                    }
+
+                    const finalIds = Array.from(new Set(wanted.map(function(id){ return String(id); }).filter(function(id){ return !!availableIds[id]; })));
+                    if (finalIds.length > 0) {
+                        $('input[name="tax_input[product_cat][]"]').prop('checked', false);
+                        finalIds.forEach(function(termId) {
+                            $('#in-product_cat-' + termId + ', #in-popular-product_cat-' + termId).prop('checked', true);
+                        });
                     }
                 }
 
@@ -86,44 +169,109 @@ class Ali_AI_Helper {
                     if (!Array.isArray(attributes) || attributes.length === 0) {
                         return;
                     }
-                    attributes.forEach(function(attr, index) {
-                        const i = index;
-                        const $name = $('input[name="attrs[' + i + '][name]"]');
+
+                    const normalize = function(value) {
+                        return String(value || '').trim().toLowerCase();
+                    };
+                    const used = {};
+
+                    $('input[name^="attrs["]').each(function(){
+                        const nameMatch = $(this).attr('name').match(/^attrs\[(\d+)\]\[name\]$/);
+                        if (!nameMatch) {
+                            return;
+                        }
+
+                        const i = parseInt(nameMatch[1], 10);
+                        const $name = $(this);
                         const $value = $('input[name="attrs[' + i + '][value]"]');
                         const $row = $name.closest('tr');
-                        if ($name.length) {
-                            $name.val(attr.name || '');
-                            $row.find('td').eq(1).text(attr.name || '');
+                        const currentName = normalize($name.val());
+                        const currentValue = normalize($value.val());
+
+                        let found = null;
+
+                        if (attributes[i] && !used[i]) {
+                            found = attributes[i];
+                            used[i] = true;
                         }
-                        if ($value.length) {
-                            $value.val(attr.value || '');
-                            $row.find('td').eq(2).text(attr.value || '');
+
+                        if (!found) {
+                            attributes.forEach(function(attr, idx) {
+                                if (found || used[idx] || !attr) {
+                                    return;
+                                }
+                                const aiName = normalize(attr.name);
+                                const aiValue = normalize(attr.value);
+                                if ((aiName && aiName === currentName) || (aiValue && aiValue === currentValue)) {
+                                    found = attr;
+                                    used[idx] = true;
+                                }
+                            });
+                        }
+
+                        if (!found) {
+                            attributes.forEach(function(attr, idx) {
+                                if (found || used[idx] || !attr) {
+                                    return;
+                                }
+                                found = attr;
+                                used[idx] = true;
+                            });
+                        }
+
+                        if (!found) {
+                            return;
+                        }
+
+                        const translatedName = String(found.name || '').trim();
+                        const translatedValue = String(found.value || '').trim();
+                        if (!translatedName && !translatedValue) {
+                            return;
+                        }
+
+                        if (translatedName) {
+                            $name.val(translatedName);
+                            $row.find('.ali-attr-name-display').text(translatedName);
+                        }
+                        if (translatedValue) {
+                            $value.val(translatedValue);
+                            $row.find('.ali-attr-value-display').text(translatedValue);
                         }
                     });
                 }
 
-                $('#ali-ai-improve-btn').on('click', function() {
+                $('.ali-ai-improve-btn').on('click', function() {
+                    const mode = $(this).data('mode');
                     const $btn = $(this);
+                    const $allBtns = $('.ali-ai-improve-btn');
                     const $spinner = $('#ali-ai-spinner');
                     const $status = $('#ali-ai-status');
+                    const $debug = $('#ali-ai-debug');
                     const payload = {
                         action: 'ali_ai_improve_product',
                         nonce: '<?php echo esc_js($nonce); ?>',
+                        mode: mode,
                         product_id: <?php echo (int) $product_id; ?>,
                         title: $('#title').val() || '',
+                        brand: $('#brand').val() || '',
                         category: $('#product_category').val() || '',
+                        min_delivery_days: $('#min_delivery_days').val() || '',
+                        max_delivery_days: $('#max_delivery_days').val() || '',
+                        shipping_fees: $('#shipping_fees').val() || '',
+                        ship_from_country: $('#ship_from_country').val() || '',
+                        product_score: $('#product_score').val() || '',
+                        review_number: $('#review_number').val() || '',
+                        order_number: $('#order_number').val() || '',
                         description: getEditorContent(),
-                        attributes: extractAttributes()
+                        attributes: extractAttributes(),
+                        store_categories: collectStoreCategories()
                     };
 
-                    if (!payload.title.trim()) {
-                        alert('Wypełnij tytuł produktu.');
-                        return;
-                    }
-
-                    $btn.prop('disabled', true).text('AI pracuje...');
+                    $allBtns.prop('disabled', true);
+                    $btn.text('AI pracuje...');
                     $spinner.css('visibility', 'visible').addClass('is-active');
                     $status.hide().empty();
+                    $debug.hide().find('pre').text('');
 
                     $.post(ajaxurl, payload)
                         .done(function(response) {
@@ -134,23 +282,35 @@ class Ali_AI_Helper {
                             }
 
                             const data = response.data;
+                            if (data.debug_prompt) {
+                                $debug.show().find('pre').text(data.debug_prompt);
+                            }
                             if (data.title) {
                                 $('#title').val(data.title);
                             }
                             if (data.description) {
                                 setEditorContent(data.description);
                             }
-                            applyCategories(data);
-                            applyAttributes(data.attributes || []);
+                            if (mode === 'categories') {
+                                applyCategories(data);
+                            }
+                            if (mode === 'attributes') {
+                                applyAttributes(data.attributes || []);
+                            }
 
-                            $status.html('<div class="notice notice-success inline"><p>AI poprawiło dane produktu.</p></div>').show();
+                            const labels = {title: 'tytuł', categories: 'kategorie', attributes: 'atrybuty', description: 'opis'};
+                            $status.html('<div class="notice notice-success inline"><p>AI poprawiło sekcję: ' + (labels[mode] || mode) + '.</p></div>').show();
                         })
                         .fail(function(xhr) {
                             const msg = xhr && xhr.responseJSON && xhr.responseJSON.data ? xhr.responseJSON.data : 'Błąd połączenia z AI.';
                             $status.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>').show();
                         })
                         .always(function() {
-                            $btn.prop('disabled', false).text('POPRAW AI');
+                            $allBtns.prop('disabled', false);
+                            $('.ali-ai-improve-btn[data-mode="title"]').text('AI: Tytuł');
+                            $('.ali-ai-improve-btn[data-mode="categories"]').text('AI: Kategorie');
+                            $('.ali-ai-improve-btn[data-mode="attributes"]').text('AI: Atrybuty');
+                            $('.ali-ai-improve-btn[data-mode="description"]').text('AI: Opis');
                             $spinner.css('visibility', 'hidden').removeClass('is-active');
                         });
                 });
@@ -187,11 +347,22 @@ class Ali_AI_Helper {
         $product_data = [
             'title' => sanitize_text_field(wp_unslash($_POST['title'] ?? '')),
             'category' => sanitize_text_field(wp_unslash($_POST['category'] ?? '')),
+            'brand' => sanitize_text_field(wp_unslash($_POST['brand'] ?? '')),
+            'min_delivery_days' => sanitize_text_field(wp_unslash($_POST['min_delivery_days'] ?? '')),
+            'max_delivery_days' => sanitize_text_field(wp_unslash($_POST['max_delivery_days'] ?? '')),
+            'shipping_fees' => sanitize_text_field(wp_unslash($_POST['shipping_fees'] ?? '')),
+            'ship_from_country' => sanitize_text_field(wp_unslash($_POST['ship_from_country'] ?? '')),
+            'product_score' => sanitize_text_field(wp_unslash($_POST['product_score'] ?? '')),
+            'review_number' => sanitize_text_field(wp_unslash($_POST['review_number'] ?? '')),
+            'order_number' => sanitize_text_field(wp_unslash($_POST['order_number'] ?? '')),
             'attributes' => $attributes,
             'description_preview' => wp_kses_post(wp_unslash($_POST['description'] ?? '')),
+            'store_categories' => $this->sanitize_store_categories($_POST['store_categories'] ?? []),
         ];
 
-        $response = $this->improve_product($product_data, ['categories' => $this->get_categories_hierarchical()]);
+        $mode = sanitize_key(wp_unslash($_POST['mode'] ?? ''));
+        $categories_from_form = !empty($product_data['store_categories']) ? $product_data['store_categories'] : $this->get_categories_hierarchical();
+        $response = $this->improve_product($product_data, ['categories' => $categories_from_form], $mode);
         if (is_wp_error($response)) {
             wp_send_json_error($response->get_error_message());
         }
@@ -199,15 +370,39 @@ class Ali_AI_Helper {
         wp_send_json_success($response);
     }
 
-    private function improve_product($product_data, $store_data) {
-        $prompt = $this->build_prompt($product_data, $store_data);
+    private function improve_product($product_data, $store_data, $mode) {
+        $allowed_modes = ['title', 'categories', 'attributes', 'description'];
+        if (!in_array($mode, $allowed_modes, true)) {
+            return new WP_Error('ali_ai_bad_mode', 'Nieprawidłowy tryb AI.');
+        }
+
+        $prompt = $this->build_prompt($product_data, $store_data, $mode);
+        $this->log_ai_prompt($mode, $prompt, $product_data);
         $response = $this->send_to_groq($prompt);
 
         if (is_wp_error($response)) {
             return $response;
         }
 
-        return $this->parse_ai_response($response, $product_data);
+        $parsed = $this->parse_ai_response_by_mode($response, $product_data, $mode);
+        if (is_wp_error($parsed)) {
+            return $parsed;
+        }
+
+        $parsed['debug_prompt'] = $prompt;
+
+        return $parsed;
+    }
+
+    private function log_ai_prompt($mode, $prompt, $product_data) {
+        $context = [
+            'mode' => sanitize_key((string) $mode),
+            'product_title' => sanitize_text_field((string) ($product_data['title'] ?? '')),
+            'timestamp' => gmdate('c'),
+            'prompt' => (string) $prompt,
+        ];
+
+        error_log('[ALI_AI_PROMPT] ' . wp_json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
     private function get_categories_hierarchical() {
@@ -237,7 +432,7 @@ class Ali_AI_Helper {
         return $result;
     }
 
-    private function build_prompt($product_data, $store_data) {
+    private function build_prompt($product_data, $store_data, $mode) {
         $attributes_text = "";
         if (!empty($product_data['attributes'])) {
             foreach ($product_data['attributes'] as $attr) {
@@ -249,6 +444,152 @@ class Ali_AI_Helper {
 
         $full_description = wp_strip_all_tags((string) ($product_data['description_preview'] ?? ''));
         $hierarchical_categories = isset($store_data['categories']) && is_array($store_data['categories']) ? $store_data['categories'] : [];
+        $delivery_info = [
+            'MIN CZAS DOSTAWY (dni)' => $product_data['min_delivery_days'] ?? '',
+            'MAKSYMALNY CZAS DOSTAWY (dni)' => $product_data['max_delivery_days'] ?? '',
+            'OPŁATA ZA DOSTAWĘ' => $product_data['shipping_fees'] ?? '',
+            'KRAJ WYSYŁKI' => $product_data['ship_from_country'] ?? '',
+            'LICZBA OPINII' => $product_data['review_number'] ?? '',
+            'SPRZEDANE SZTUKI' => $product_data['order_number'] ?? '',
+        ];
+        $delivery_text = "";
+        foreach ($delivery_info as $label => $value) {
+            $delivery_text .= $label . ': ' . ($value !== '' ? $value : 'Brak danych') . "\n";
+        }
+
+        if ($mode === 'title') {
+            return "Jesteś ekspertem SEO i copywriterem w sklepie motozchin.pl – akcesoria i części samochodowe z AliExpress.
+
+"
+                . "Twoim zadaniem jest stworzyć optymalny, chwytliwy tytuł produktu po polsku.
+
+"
+                . "Reguły (bardzo ważne – trzymaj się ich ściśle):
+"
+                . "1. Maksymalna długość 75 znaków (najlepiej 55–68)
+"
+                . "2. Najważniejsza fraza kluczowa (główna nazwa produktu + najważniejsza cecha / model / marka) na samym początku
+"
+                . "3. Marka na początku lub zaraz po głównym słowie kluczowym (jeśli jest znana i popularna)
+"
+                . "4. Dodaj 1–2 modyfikatory podnoszące konwersję / SEO: zestaw, zestaw 2 szt., LED, CARBON, sportowy, wzmocniony, uniwersalny, do BMW E46, na Passat B5 itd.
+"
+                . "5. Styl: konkretny, męski, techniczny, ale naturalny – bez spamu typu „!!! super mega promocja”
+"
+                . "6. Końcówka może zawierać pojemność, kolor, grubość, moc itp. jeśli to kluczowe
+
+"
+                . "ZWRÓĆ DOKŁADNIE JEDNĄ LINIĘ:
+"
+                . "POPRAWIONY TYTUŁ: [tekst]
+
+"
+                . "DANE WEJŚCIOWE:
+"
+                . "TYTUŁ: {$product_data['title']}
+"
+                . "MARKA: " . ($product_data['brand'] ?: 'Brak danych') . "
+"
+                . "ŚCIEŻKA KATEGORII ALIEXPRESS: {$product_data['category']}";
+        }
+
+        if ($mode === 'categories') {
+            return "Jesteś specjalistą kategoryzacji produktów WooCommerce.\n\n"
+                . "ZWRÓĆ DOKŁADNIE W TYM FORMACIE (bez dodatkowego tekstu):\n"
+                . "GŁÓWNA: [dokładna nazwa kategorii z listy]\n"
+                . "PODKATEGORIA: [dokładna nazwa podkategorii z listy]\n"
+                                . "DANE WEJŚCIOWE:\n"
+                . "TYTUŁ: {$product_data['title']}\n\n"
+                . "LISTA KATEGORII SKLEPU (ŚCIEŻKA):\n"
+                . implode("\n", $hierarchical_categories)
+                . "\n\nWybierz kategorie WYŁĄCZNIE z tej listy.";
+        }
+
+        if ($mode === 'attributes') {
+            return "Jesteś ekspertem od parametrów technicznych i SEO w sklepie z akcesoriami motoryzacyjnymi motozchin.pl.
+
+"
+                . "Weź poniższe atrybuty z AliExpress i popraw je:
+"
+                . "- nazwy atrybutów → popraw na poprawną, naturalną polszczyznę (bez tłumaczonych maszynowo bzdur)
+"
+                . "- wartości → ujednolić jednostki, zaokrąglić sensownie, dodać jednostki jeśli brakuje
+"
+                . "- usuń duplikaty i bezsensowne atrybuty (np. 'brand name: generic')
+"
+                . "- dodaj 1–4 ważne atrybuty, jeśli wyraźnie wynikają z tytułu/opisu (np. 'Kolor: czarny mat', 'Kompatybilność: uniwersalny')
+
+"
+                . "Dane wejściowe (lista atrybutów):
+"
+                . $attributes_text
+                . "
+"
+                . "Przykładowy ładny format wyjściowy (użyj dokładnie takiej składni):
+
+"
+                . "Materiał: stal nierdzewna + aluminium
+"
+                . "Kolor: czarny mat / carbon look
+"
+                . "Średnica: 63 mm
+"
+                . "Długość: 120 cm
+"
+                . "Kompatybilność: uniwersalna (większość samochodów osobowych)
+"
+                . "Montaż: plug & play
+"
+                . "Gwarancja: 24 miesiące
+
+"
+                . "Wymagania techniczne odpowiedzi:
+"
+                . "- Zwróć WYŁĄCZNIE linie w formacie: Nazwa: Wartość
+"
+                . "- Nie dodawaj nagłówków, numeracji ani komentarzy
+"
+                . "- Maksymalnie 18 linii";
+        }
+
+        if ($mode === 'description') {
+            return "Jesteś polskim copywriterem SEO e-commerce. Napisz lepszy opis HTML produktu.
+"
+                . "Styl: luźniejszy, mniej powtórzeń i mniej przesadnego zachwalania; skup się na realnych cechach produktu i konkretach.
+
+"
+                . "ZWRÓĆ DOKŁADNIE:
+ULEPSZONY OPIS: [HTML]
+
+"
+                . "DANE WEJŚCIOWE:
+"
+                . "TYTUŁ: {$product_data['title']}
+"
+                . "KRAJ WYSYŁKI: " . ($product_data['ship_from_country'] ?: 'Brak danych') . "
+"
+                . "MIN DNI DOSTAWY: " . ($product_data['min_delivery_days'] ?: 'Brak danych') . "
+"
+                . "MAX DNI DOSTAWY: " . ($product_data['max_delivery_days'] ?: 'Brak danych') . "
+"
+                . "KOSZT DOSTAWY: " . ($product_data['shipping_fees'] ?: 'Brak danych') . "
+"
+                . "OCENA PRODUKTU: " . ($product_data['product_score'] ?: 'Brak danych') . "
+"
+                . "LICZBA OPINII: " . ($product_data['review_number'] ?: 'Brak danych') . "
+"
+                . "SPRZEDANE SZTUKI: " . ($product_data['order_number'] ?: 'Brak danych') . "
+
+"
+                . "ATRYBUTY:
+" . $attributes_text . "
+"
+                . "OPIS WEJŚCIOWY:
+" . $full_description . "
+
+"
+                . "Sekcje: <h2>, kilka <h3>, listy punktowane. Bez fikcyjnych parametrów.";
+        }
 
         $prompt = "Jesteś TOP 1 ekspertem SEO i copywriterem w Polsce specjalizującym się w akcesoriach samochodowych z AliExpress.
 Twoje zadanie: ZOPTYMALIZUJ dane produktu pod polskie SEO.
@@ -261,7 +602,7 @@ PRAWIDŁOWY FORMAT ODPOWIEDZI (NIC WIĘCEJ!):
 GŁÓWNA: [TUTAJ WPISZ DOKŁADNĄ NAZWĘ KATEGORII GŁÓWNEJ Z LISTY]
 PODKATEGORIA: [TUTAJ WPISZ DOKŁADNĄ NAZWĘ PODKATEGORII Z LISTY]
 
-3. POPRAWIONE ATRYBUTY:
+3. POPRAWIONE ATRYBUTY (OBOWIĄZKOWO WSZYSTKIE):
 NAZWA_ATRYBUTU: Wartość
 NAZWA_ATRYBUTU2: Wartość2
 
@@ -338,6 +679,9 @@ KATEGORIA ORYGINALNA: {$product_data['category']}
 ATRYBUTY DO POPRAWY:
 {$attributes_text}
 
+DODATKOWE DANE LOGISTYCZNE I SPRZEDAŻOWE (wykorzystaj je w sekcji 📦):
+{$delivery_text}
+
 PEŁNY OPIS Z AliExpress (użyj TEGO do stworzenia nowego opisu):
 {$full_description}
 
@@ -365,8 +709,11 @@ KROK 4: WYBIERZ KATEGORIE
 - UŻYJ DOKŁADNEJ NAZWY z listy
 
 KROK 5: POPRAW ATRYBUTY
-- Tłumacz chińskie/angielskie nazwy na polski
-- Używaj naturalnego języka
+- Popraw KAŻDY atrybut wejściowy (nie pomijaj żadnego, nawet jeśli jest ich >10)
+- Zachowaj tę samą liczbę pozycji co w wejściu
+- Tłumacz chińskie/angielskie nazwy i wartości na polski
+- Jeśli brzmienie jest brzydkie/stylistycznie słabe, popraw je na naturalny język e-commerce
+- Nie zostawiaj surowych, niezrozumiałych skrótów jeśli da się je doprecyzować
 
 KROK 6: NAPISZ OPIS
 - HTML, minimum 500 słów
@@ -378,7 +725,7 @@ STRUKTURA OPISU:
 <p>2-3 akapity wprowadzenia.</p>
 
 <h3>🔧 Specyfikacja techniczna</h3>
-<p>Weź wszystkie dane techniczne z oryginalnego opisu.</p>
+<p>Stwórz własny, spójny tekst techniczny na podstawie opisu i atrybutów. Nie kopiuj 1:1 i nie dopisuj fikcyjnych parametrów.</p>
 
 <h3>⭐ Zalety i korzyści</h3>
 <p>Wypunktuj dlaczego warto wybrać akurat ten produkt.</p>
@@ -387,9 +734,11 @@ STRUKTURA OPISU:
 <p>Dla jakich aut/modeli/urządzeń produkt jest przeznaczony.</p>
 
 <h3>📦 Zakup z AliExpress - co warto wiedzieć?</h3>
-<p>Informacje o dostawie, gwarancji, zwrotach przy zakupie z AliExpress.</p>
+<p>Koniecznie użyj podanych danych: min/maks czas dostawy, opłata za dostawę, kraj wysyłki, liczba opinii i sprzedane sztuki. Jeśli czegoś brakuje, napisz to wprost zamiast zgadywać.</p>
 
 PAMIĘTAJ: Produkt jest z AliExpress - w opisie podkreślaj aspekty: cena vs jakość, czas dostawy, opcje zwrotu, dostępność.
+W sekcji atrybutów oddaj WSZYSTKIE pozycje wejściowe i popraw je językowo, nie tylko tłumacz dosłownie.
+NIE WYMYŚLAJ parametrów technicznych ani właściwości typu 'Wersja oprogramowania: Najnowsza wersja', jeśli nie wynikają z opisu/atrybutów.
 
 NIE DODAWAJ żadnych 'wezwań do działania', przycisków kup teraz, itp.
 Opis ma być czysto informacyjny i SEO.";
@@ -452,12 +801,229 @@ Opis ma być czysto informacyjny i SEO.";
         return $data['choices'][0]['message']['content'];
     }
 
+
+    private function parse_ai_response_by_mode($ai_response, $original_data, $mode) {
+        if ($mode === 'title') {
+            $title = '';
+            foreach (explode("\n", (string) $ai_response) as $line) {
+                $line = trim((string) $line);
+                if ($line === '') {
+                    continue;
+                }
+                if (preg_match('/POPRAWIONY\s+TYTUŁ\s*:\s*(.+)/i', $line, $m)) {
+                    $title = sanitize_text_field(trim((string) $m[1]));
+                    break;
+                }
+                if ($title === '') {
+                    $title = sanitize_text_field($line);
+                }
+            }
+
+            return ['title' => $title ?: ($original_data['title'] ?? '')];
+        }
+
+        if ($mode === 'categories') {
+            $parsed = $this->parse_categories_mode_response($ai_response, $original_data);
+            return [
+                'category' => $parsed['category'],
+                'main_category' => $parsed['main_category'],
+                'sub_category' => $parsed['sub_category'],
+                'category_paths' => $parsed['category_paths'],
+                'category_ids' => $parsed['category_ids'] ?? [],
+            ];
+        }
+
+        if ($mode === 'attributes') {
+            $parsed_attributes = $this->parse_attributes_mode_response($ai_response);
+            if (empty($parsed_attributes)) {
+                $parsed_attributes = $original_data['attributes'] ?? [];
+            }
+            return [
+                'attributes' => $parsed_attributes,
+            ];
+        }
+
+        if ($mode === 'description') {
+            $parsed = $this->parse_ai_response($ai_response, $original_data);
+            return [
+                'description' => $parsed['description'] ?? ($original_data['description_preview'] ?? ''),
+            ];
+        }
+
+        return new WP_Error('ali_ai_bad_mode_parse', 'Nieobsługiwany tryb odpowiedzi AI.');
+    }
+
+    private function parse_categories_mode_response($ai_response, $original_data) {
+        $main_category = '';
+        $sub_category = '';
+        $category = '';
+        $category_ids = [];
+
+
+        foreach (explode("\n", (string) $ai_response) as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+
+            $line = preg_replace('/^#{1,6}\s*/u', '', $line);
+            $line = preg_replace('/^\*\*(.+)\*\*$/u', '$1', $line);
+
+            if (preg_match('/GŁÓWNA\s*:\s*(.+)/iu', $line, $m)) {
+                $main_category = sanitize_text_field(trim((string) $m[1]));
+                continue;
+            }
+            if (preg_match('/PODKATEGORIA\s*:\s*(.+)/iu', $line, $m)) {
+                $sub_category = sanitize_text_field(trim((string) $m[1]));
+                continue;
+            }
+            if (preg_match('/\bID\s*:\s*([0-9,\s]+)/iu', $line, $m)) {
+                $ids = preg_split('/[^0-9]+/', (string) $m[1]);
+                foreach ($ids as $id) {
+                    $id = absint($id);
+                    if ($id > 0) {
+                        $category_ids[] = $id;
+                    }
+                }
+                continue;
+            }
+
+            if ($category === '' && strpos($line, '→') !== false) {
+                $category = sanitize_text_field($line);
+            }
+        }
+
+        if ($category === '' && $main_category !== '' && $sub_category !== '') {
+            $category = $main_category . ' → ' . $sub_category;
+        }
+        if ($category === '' && $main_category !== '') {
+            $category = $main_category;
+        }
+
+
+        $category_paths = $this->resolve_category_paths($main_category, $sub_category, $category);
+        if (empty($category_ids) && !empty($category_paths)) {
+            $category_ids = $this->resolve_category_ids_from_paths($category_paths);
+        }
+
+        return [
+            'category' => $category,
+            'main_category' => $main_category,
+            'sub_category' => $sub_category,
+            'category_paths' => $category_paths,
+            'category_ids' => array_values(array_unique(array_filter(array_map('absint', $category_ids)))),
+        ];
+    }
+
+    private function parse_attributes_mode_response($ai_response) {
+        $result = [];
+        foreach (explode("\n", (string) $ai_response) as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+
+            $line = preg_replace('/^#{1,6}\s*/u', '', $line);
+            $line = preg_replace('/^\*\*(.+)\*\*$/u', '$1', $line);
+            $line = preg_replace('/^[\-•\*]\s*/u', '', $line);
+            $line = preg_replace('/^\d+[\.)]\s*/u', '', $line);
+
+            if (stripos($line, 'ATRYBUT') !== false && strpos($line, ':') === false) {
+                continue;
+            }
+
+            if (strpos($line, ':') === false) {
+                continue;
+            }
+
+            $parts = explode(':', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $name = sanitize_text_field(trim((string) $parts[0]));
+            $value = sanitize_text_field(trim((string) $parts[1]));
+            if ($name === '' || $value === '') {
+                continue;
+            }
+
+            $result[] = [
+                'name' => $name,
+                'value' => $value,
+            ];
+        }
+
+        return $result;
+    }
+
+
+    private function sanitize_store_categories($store_categories_input) {
+        $result = [];
+        if (!is_array($store_categories_input)) {
+            return $result;
+        }
+
+        foreach (wp_unslash($store_categories_input) as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $id = absint($row['id'] ?? 0);
+            $path = sanitize_text_field((string) ($row['path'] ?? ''));
+            if ($id > 0 && $path !== '') {
+                $result[] = $id . ' | ' . $path;
+            }
+        }
+
+        return array_values(array_unique($result));
+    }
+
+    private function resolve_category_ids_from_paths($paths) {
+        $ids = [];
+        if (empty($paths) || !is_array($paths)) {
+            return $ids;
+        }
+
+        $categories = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+        ]);
+
+        if (is_wp_error($categories) || empty($categories)) {
+            return $ids;
+        }
+
+        $normalize = static function ($value) {
+            return mb_strtolower(trim((string) $value));
+        };
+
+        $wanted = array_map($normalize, $paths);
+        foreach ($categories as $cat) {
+            $path = $cat->name;
+            $parent = $cat->parent;
+            while ($parent) {
+                $parent_term = get_term($parent, 'product_cat');
+                if (!$parent_term || is_wp_error($parent_term)) {
+                    break;
+                }
+                $path = $parent_term->name . ' → ' . $path;
+                $parent = $parent_term->parent;
+            }
+
+            if (in_array($normalize($path), $wanted, true)) {
+                $ids[] = (int) $cat->term_id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
     private function parse_ai_response($ai_response, $original_data) {
         $result = [
             'title' => '',
             'category' => '',
             'main_category' => '',
             'sub_category' => '',
+            'category_paths' => [],
             'attributes' => [],
             'description' => '',
         ];
@@ -475,6 +1041,10 @@ Opis ma być czysto informacyjny i SEO.";
             if ($line === '') {
                 continue;
             }
+
+            $line = preg_replace('/^#{1,6}\s*/u', '', $line);
+            $line = preg_replace('/^\*\*(.+)\*\*$/u', '$1', $line);
+            $line = preg_replace('/^__(.+)__$/u', '$1', $line);
 
             if (strpos($line, 'POPRAWIONY TYTUŁ') !== false) {
                 $current_section = 'title';
@@ -511,25 +1081,31 @@ Opis ma być czysto informacyjny i SEO.";
                 }
             }
 
-            if (preg_match('/^(3\.)?\s*POPRAWIONE ATRYBUTY:/i', $line)) {
+            if (preg_match('/^(3[\.)])?\s*POPRAWIONE\s+ATRYBUTY(?:\s+PRODUKTU)?(?:\s*\(OBOWIĄZKOWO\s+WSZYSTKIE\))?\s*:?/i', $line)) {
                 $current_section = 'attributes';
                 continue;
             }
 
             if ($current_section === 'attributes') {
-                if (preg_match('/^(4\.)?\s*ULEPSZONY OPIS:/i', $line)) {
+                if (preg_match('/^(4[\.)])?\s*ULEPSZONY\s+OPIS\s*:/i', $line)) {
                     $current_section = 'description';
                     continue;
                 }
-                if (strpos($line, ':') !== false) {
-                    $parts = explode(':', $line, 2);
+                if (preg_match('/^[\-•\*]\s*/u', $line)) {
+                    $line = preg_replace('/^[\-•\*]\s*/u', '', $line);
+                }
+                if (preg_match('/^\d+[\.)]\s+/', $line)) {
+                    $line = preg_replace('/^\d+[\.)]\s+/', '', $line);
+                }
+                if (strpos($line, ':') !== false || strpos($line, ' - ') !== false) {
+                    $parts = strpos($line, ':') !== false ? explode(':', $line, 2) : explode(' - ', $line, 2);
                     if (count($parts) === 2) {
-                        $name = trim($parts[0]);
-                        $value = trim($parts[1]);
+                        $name = trim((string) $parts[0]);
+                        $value = trim((string) $parts[1]);
                         if ($name !== '' && $value !== '') {
                             $result['attributes'][] = [
-                                'name' => $name,
-                                'value' => $value,
+                                'name' => sanitize_text_field($name),
+                                'value' => sanitize_text_field($value),
                             ];
                         }
                     }
@@ -537,9 +1113,9 @@ Opis ma być czysto informacyjny i SEO.";
                 continue;
             }
 
-            if (preg_match('/^(4\.)?\s*ULEPSZONY OPIS:/i', $line)) {
+            if (preg_match('/^(4[\.)])?\s*ULEPSZONY\s+OPIS\s*:/i', $line)) {
                 $current_section = 'description';
-                $desc = preg_replace('/^(4\.)?\s*ULEPSZONY OPIS:\s*/i', '', $line);
+                $desc = preg_replace('/^(4[\.)])?\s*ULEPSZONY\s+OPIS\s*:\s*/i', '', $line);
                 if (!empty($desc) && $desc !== $line) {
                     $result['description'] .= $desc . "\n";
                 }
@@ -559,6 +1135,12 @@ Opis ma być czysto informacyjny i SEO.";
             $result['category'] = $result['sub_category'];
         }
 
+        $result['category_paths'] = $this->resolve_category_paths(
+            $result['main_category'],
+            $result['sub_category'],
+            $result['category']
+        );
+
         if (empty($result['title'])) {
             $result['title'] = $original_data['title'] ?? '';
         }
@@ -574,4 +1156,65 @@ Opis ma być czysto informacyjny i SEO.";
 
         return $result;
     }
+
+
+    private function resolve_category_paths($main_category, $sub_category, $category_path) {
+        $selected = [];
+        $all_paths = $this->get_categories_hierarchical();
+
+        $normalize = static function ($value) {
+            return mb_strtolower(trim((string) $value));
+        };
+
+        $main_norm = $normalize($main_category);
+        $sub_norm = $normalize($sub_category);
+        $path_norm = $normalize($category_path);
+        $path_parts_norm = [];
+        if ($path_norm !== '') {
+            $path_parts_norm = array_map($normalize, array_values(array_filter(array_map('trim', explode('→', $category_path)))));
+        }
+
+        foreach ($all_paths as $path) {
+            $path_parts = array_map('trim', explode('→', (string) $path));
+            $path_parts = array_values(array_filter($path_parts));
+            if (empty($path_parts)) {
+                continue;
+            }
+
+            $path_main = $normalize($path_parts[0]);
+            $path_sub = $normalize(end($path_parts));
+            $full_path = $normalize($path);
+
+            if ($path_norm !== '' && $full_path === $path_norm) {
+                $selected[] = trim((string) $path);
+                continue;
+            }
+
+            if (!empty($path_parts_norm) && count($path_parts_norm) > 1) {
+                $path_first = $path_parts_norm[0];
+                $path_last = $path_parts_norm[count($path_parts_norm) - 1];
+                if ($path_main === $path_first && $path_sub === $path_last) {
+                    $selected[] = trim((string) $path);
+                    continue;
+                }
+            }
+
+            if ($main_norm !== '' && $sub_norm !== '' && $path_main === $main_norm && $path_sub === $sub_norm) {
+                $selected[] = trim((string) $path);
+                continue;
+            }
+
+            if ($sub_norm !== '' && $path_sub === $sub_norm) {
+                $selected[] = trim((string) $path);
+                continue;
+            }
+
+            if ($main_norm !== '' && count($path_parts) === 1 && $path_main === $main_norm) {
+                $selected[] = trim((string) $path);
+            }
+        }
+
+        return array_values(array_unique(array_filter($selected)));
+    }
+
 }

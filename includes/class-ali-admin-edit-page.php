@@ -13,6 +13,7 @@ class Ali_Admin_Edit_Page {
         $this->ai_helper = $ai_helper;
         add_action('admin_menu', [$this, 'register_page']);
         add_action('admin_post_ali_save_product', [$this, 'handle_save_product']);
+        add_action('wp_ajax_ali_import_selected_image', [$this, 'handle_ajax_import_selected_image']);
     }
 
     public function register_page() {
@@ -66,6 +67,8 @@ class Ali_Admin_Edit_Page {
         echo '<h2>Zdjęcia</h2>';
         echo '<p><label><input type="radio" name="image_choice" value="image_link" ' . checked(($meta['image_choice'] ?? 'image_link'), 'image_link', false) . ' /> Zwykłe</label> ';
         echo '<label><input type="radio" name="image_choice" value="image_white" ' . checked(($meta['image_choice'] ?? ''), 'image_white', false) . ' /> White</label></p>';
+        echo '<p><button type="button" class="button button-secondary" id="ali-import-selected-image">Importuj i ustaw na obrazek produktu</button> <span id="ali-import-selected-image-spinner" class="spinner" style="float:none;visibility:hidden;"></span></p>';
+        echo '<div id="ali-import-selected-image-status" style="display:none;margin:6px 0 10px;"></div>';
         echo '<table class="form-table" role="presentation">';
         $this->text_input_row('image_link', 'Image link', $meta['image_link'] ?? '');
         $this->text_input_row('image_white', 'Image white', $meta['image_white'] ?? '');
@@ -122,25 +125,35 @@ class Ali_Admin_Edit_Page {
         echo '<p><button class="button" type="button" id="ali-select-all">Zaznacz wszystkie</button> <button class="button" type="button" id="ali-unselect-all">Odznacz wszystkie</button></p>';
         echo '<table class="widefat striped"><thead><tr><th>Dodaj</th><th>Nazwa</th><th>Wartość</th></tr></thead><tbody>';
         foreach ($attrs as $i => $attr) {
+            $attr_name = (string) ($attr['name'] ?? '');
+            $attr_value = (string) ($attr['value'] ?? '');
             echo '<tr>';
             echo '<td><input class="ali-attr-check" type="checkbox" name="attrs[' . esc_attr($i) . '][selected]" value="1" ' . checked(!empty($attr['selected']), true, false) . ' /></td>';
-            echo '<td>' . esc_html($attr['name'] ?? '') . '</td>';
-            echo '<td>' . esc_html($attr['value'] ?? '') . '</td>';
+            echo '<td><span class="ali-attr-name-display">' . esc_html($attr_name) . '</span><input type="hidden" name="attrs[' . esc_attr($i) . '][name]" value="' . esc_attr($attr_name) . '" /></td>';
+            echo '<td><span class="ali-attr-value-display">' . esc_html($attr_value) . '</span><input type="hidden" name="attrs[' . esc_attr($i) . '][value]" value="' . esc_attr($attr_value) . '" /></td>';
             echo '</tr>';
-            echo '<input type="hidden" name="attrs[' . esc_attr($i) . '][name]" value="' . esc_attr($attr['name'] ?? '') . '" />';
-            echo '<input type="hidden" name="attrs[' . esc_attr($i) . '][value]" value="' . esc_attr($attr['value'] ?? '') . '" />';
         }
         echo '</tbody></table>';
 
+        $detail_content = (string) ($meta['detail'] ?? '');
+        if ($detail_content === '') {
+            $detail_content = (string) $product->get_description();
+        }
+
         echo '<h2>Opis</h2>';
         wp_editor(
-            (string) ($meta['detail'] ?? ''),
+            $detail_content,
             'ali_detail_editor',
             [
                 'textarea_name' => 'detail',
                 'textarea_rows' => 12,
                 'media_buttons' => false,
-                'teeny' => true,
+                'teeny' => false,
+                'quicktags' => true,
+                'tinymce' => [
+                    'toolbar1' => 'formatselect,bold,italic,bullist,numlist,blockquote,link,unlink,undo,redo',
+                    'block_formats' => 'Akapit=p;Nagłówek 2=h2;Nagłówek 3=h3;Nagłówek 4=h4',
+                ],
             ]
         );
         echo '<p><label><input type="checkbox" name="detail_corrected" value="1" ' . checked(!empty($meta['detail_corrected']), true, false) . ' /> POPRAWIONO OPIS</label></p>';
@@ -150,6 +163,7 @@ class Ali_Admin_Edit_Page {
         ?>
         <script>
             jQuery(function($){
+                var importNonce = '<?php echo esc_js(wp_create_nonce('ali_import_selected_image_' . $product_id)); ?>';
                 var frame;
                 $('#ali-choose-featured').on('click', function(e){
                     e.preventDefault();
@@ -175,10 +189,56 @@ class Ali_Admin_Edit_Page {
                     frame.open();
                 });
 
+                $('#ali-import-selected-image').on('click', function(e){
+                    e.preventDefault();
+                    var $btn = $(this);
+                    var $spinner = $('#ali-import-selected-image-spinner');
+                    var $status = $('#ali-import-selected-image-status');
+
+                    $btn.prop('disabled', true);
+                    $spinner.css('visibility', 'visible').addClass('is-active');
+                    $status.hide().empty();
+
+                    $.post(ajaxurl, {
+                        action: 'ali_import_selected_image',
+                        nonce: importNonce,
+                        product_id: <?php echo (int) $product_id; ?>,
+                        image_choice: $('input[name="image_choice"]:checked').val() || 'image_link',
+                        image_link: $('#image_link').val() || '',
+                        image_white: $('#image_white').val() || '',
+                        title: $('#title').val() || ''
+                    }).done(function(response){
+                        if (!response || !response.success || !response.data) {
+                            var message = response && response.data ? response.data : 'Nie udało się zaimportować obrazka.';
+                            $status.html('<div class="notice notice-error inline"><p>' + message + '</p></div>').show();
+                            return;
+                        }
+                        if (response.data.attachment_id) {
+                            $('#featured_image_id').val(response.data.attachment_id);
+                        }
+                        if (response.data.image_url) {
+                            $('#ali-featured-preview').html('<img src="' + response.data.image_url + '" style="max-width:180px;height:auto;border:1px solid #dcdcde;padding:4px;background:#fff;" />');
+                        }
+                        $status.html('<div class="notice notice-success inline"><p>Zaimportowano i ustawiono obrazek produktu.</p></div>').show();
+                    }).fail(function(xhr){
+                        var msg = xhr && xhr.responseJSON && xhr.responseJSON.data ? xhr.responseJSON.data : 'Błąd importu obrazka.';
+                        $status.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>').show();
+                    }).always(function(){
+                        $btn.prop('disabled', false);
+                        $spinner.css('visibility', 'hidden').removeClass('is-active');
+                    });
+                });
+
                 $('#ali-remove-featured').on('click', function(e){
                     e.preventDefault();
                     $('#featured_image_id').val('');
                     $('#ali-featured-preview').html('');
+                });
+
+                $('form').on('submit', function(){
+                    if (typeof window.tinyMCE !== 'undefined' && window.tinyMCE.triggerSave) {
+                        window.tinyMCE.triggerSave();
+                    }
                 });
             });
             document.querySelectorAll('.ali-suggested-tag').forEach(function(box){
@@ -215,6 +275,23 @@ class Ali_Admin_Edit_Page {
 
         wp_safe_redirect(add_query_arg(['page' => 'ali-edit-product', 'product_id' => $product_id, 'updated' => 1], admin_url('admin.php')));
         exit;
+    }
+
+
+    public function handle_ajax_import_selected_image() {
+        $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+        check_ajax_referer('ali_import_selected_image_' . $product_id, 'nonce');
+
+        if (!$product_id || !current_user_can('manage_woocommerce')) {
+            wp_send_json_error('Brak uprawnień.');
+        }
+
+        $result = $this->service->import_featured_image_from_choice($product_id, wp_unslash($_POST));
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success($result);
     }
 
     private function text_input_row($name, $label, $value) {
