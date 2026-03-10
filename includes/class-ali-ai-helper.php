@@ -19,6 +19,7 @@ class Ali_AI_Helper {
             <button type="button" class="button button-primary ali-ai-improve-btn" data-mode="description">AI: Opis</button>
             <span id="ali-ai-spinner" class="spinner" style="float:none;visibility:hidden;"></span>
             <div id="ali-ai-status" style="margin-top:10px;display:none;"></div>
+            <div id="ali-ai-debug" style="margin-top:10px;display:none;"><p><strong>Debug promptu AI:</strong></p><pre style="max-height:260px;overflow:auto;background:#fff;border:1px solid #dcdcde;padding:8px;white-space:pre-wrap;"></pre></div>
         </div>
         <script>
             jQuery(function($) {
@@ -234,6 +235,7 @@ class Ali_AI_Helper {
                     const $allBtns = $('.ali-ai-improve-btn');
                     const $spinner = $('#ali-ai-spinner');
                     const $status = $('#ali-ai-status');
+                    const $debug = $('#ali-ai-debug');
                     const payload = {
                         action: 'ali_ai_improve_product',
                         nonce: '<?php echo esc_js($nonce); ?>',
@@ -258,6 +260,7 @@ class Ali_AI_Helper {
                     $btn.text('AI pracuje...');
                     $spinner.css('visibility', 'visible').addClass('is-active');
                     $status.hide().empty();
+                    $debug.hide().find('pre').text('');
 
                     $.post(ajaxurl, payload)
                         .done(function(response) {
@@ -268,6 +271,9 @@ class Ali_AI_Helper {
                             }
 
                             const data = response.data;
+                            if (data.debug_prompt) {
+                                $debug.show().find('pre').text(data.debug_prompt);
+                            }
                             if (data.title) {
                                 $('#title').val(data.title);
                             }
@@ -367,7 +373,14 @@ class Ali_AI_Helper {
             return $response;
         }
 
-        return $this->parse_ai_response_by_mode($response, $product_data, $mode);
+        $parsed = $this->parse_ai_response_by_mode($response, $product_data, $mode);
+        if (is_wp_error($parsed)) {
+            return $parsed;
+        }
+
+        $parsed['debug_prompt'] = $prompt;
+
+        return $parsed;
     }
 
     private function log_ai_prompt($mode, $prompt, $product_data) {
@@ -434,7 +447,25 @@ class Ali_AI_Helper {
         }
 
         if ($mode === 'title') {
-            return "Jesteś polskim specjalistą SEO e-commerce. Popraw tylko tytuł produktu.
+            return "Jesteś ekspertem SEO i copywriterem w sklepie motozchin.pl – akcesoria i części samochodowe z AliExpress.
+
+"
+                . "Twoim zadaniem jest stworzyć optymalny, chwytliwy tytuł produktu po polsku.
+
+"
+                . "Reguły (bardzo ważne – trzymaj się ich ściśle):
+"
+                . "1. Maksymalna długość 75 znaków (najlepiej 55–68)
+"
+                . "2. Najważniejsza fraza kluczowa (główna nazwa produktu + najważniejsza cecha / model / marka) na samym początku
+"
+                . "3. Marka na początku lub zaraz po głównym słowie kluczowym (jeśli jest znana i popularna)
+"
+                . "4. Dodaj 1–2 modyfikatory podnoszące konwersję / SEO: zestaw, zestaw 2 szt., LED, CARBON, sportowy, wzmocniony, uniwersalny, do BMW E46, na Passat B5 itd.
+"
+                . "5. Styl: konkretny, męski, techniczny, ale naturalny – bez spamu typu „!!! super mega promocja”
+"
+                . "6. Końcówka może zawierać pojemność, kolor, grubość, moc itp. jeśli to kluczowe
 
 "
                 . "ZWRÓĆ DOKŁADNIE JEDNĄ LINIĘ:
@@ -448,7 +479,7 @@ class Ali_AI_Helper {
 "
                 . "MARKA: " . ($product_data['brand'] ?: 'Brak danych') . "
 "
-                                . "ZASADY: max 70 znaków, naturalny język polski, bez lania wody.";
+                . "ŚCIEŻKA KATEGORII ALIEXPRESS: {$product_data['category']}";
         }
 
         if ($mode === 'categories') {
@@ -465,21 +496,50 @@ class Ali_AI_Helper {
         }
 
         if ($mode === 'attributes') {
-            return "Jesteś redaktorem e-commerce PL. Popraw WSZYSTKIE atrybuty.
+            return "Jesteś ekspertem od parametrów technicznych i SEO w sklepie z akcesoriami motoryzacyjnymi motozchin.pl.
 
 "
-                . "ZWRÓĆ WYŁĄCZNIE LISTĘ W FORMACIE: NAZWA: WARTOŚĆ (jedna linia = jeden atrybut).
+                . "Weź poniższe atrybuty z AliExpress i popraw je:
 "
-                . "NIE numeruj linii, NIE dodawaj nagłówków, NIE dodawaj komentarzy.
+                . "- nazwy atrybutów → popraw na poprawną, naturalną polszczyznę (bez tłumaczonych maszynowo bzdur)
 "
-                . "Musisz zwrócić tyle samo pozycji, ile dostałeś na wejściu.
+                . "- wartości → ujednolić jednostki, zaokrąglić sensownie, dodać jednostki jeśli brakuje
 "
-                . "Popraw polszczyznę, estetykę i SEO, nie tylko tłumaczenie dosłowne.
+                . "- usuń duplikaty i bezsensowne atrybuty (np. 'brand name: generic')
+"
+                . "- dodaj 1–4 ważne atrybuty, jeśli wyraźnie wynikają z tytułu/opisu (np. 'Kolor: czarny mat', 'Kompatybilność: uniwersalny')
 
 "
-                . "ATRYBUTY WEJŚCIOWE:
+                . "Dane wejściowe (lista atrybutów):
 "
-                . $attributes_text;
+                . $attributes_text
+                . "
+"
+                . "Przykładowy ładny format wyjściowy (użyj dokładnie takiej składni):
+
+"
+                . "Materiał: stal nierdzewna + aluminium
+"
+                . "Kolor: czarny mat / carbon look
+"
+                . "Średnica: 63 mm
+"
+                . "Długość: 120 cm
+"
+                . "Kompatybilność: uniwersalna (większość samochodów osobowych)
+"
+                . "Montaż: plug & play
+"
+                . "Gwarancja: 24 miesiące
+
+"
+                . "Wymagania techniczne odpowiedzi:
+"
+                . "- Zwróć WYŁĄCZNIE linie w formacie: Nazwa: Wartość
+"
+                . "- Nie dodawaj nagłówków, numeracji ani komentarzy
+"
+                . "- Maksymalnie 18 linii";
         }
 
         if ($mode === 'description') {
