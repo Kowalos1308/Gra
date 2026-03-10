@@ -54,6 +54,33 @@ class Ali_AI_Helper {
                     return $('#ali_detail_editor').val() || '';
                 }
 
+
+                function collectStoreCategories() {
+                    const rows = [];
+                    $('.categorychecklist input[type="checkbox"]').each(function() {
+                        const checkbox = this;
+                        const idMatch = checkbox.id ? checkbox.id.match(/in-product_cat-(\d+)/) : null;
+                        if (!idMatch) {
+                            return;
+                        }
+                        const termId = idMatch[1];
+                        const names = [];
+                        $(checkbox).closest('li').parents('li').get().reverse().forEach(function(parentLi) {
+                            const parentLabel = $(parentLi).find('> label').first().text().replace(/\s+/g, ' ').trim();
+                            if (parentLabel) {
+                                names.push(parentLabel);
+                            }
+                        });
+                        const ownLabel = $(checkbox).closest('li').find('> label').first().text().replace(/\s+/g, ' ').trim();
+                        if (ownLabel) {
+                            names.push(ownLabel);
+                        }
+                        const path = names.join(' → ');
+                        rows.push({id: termId, path: path || ownLabel});
+                    });
+                    return rows;
+                }
+
                 function applyCategories(data) {
                     const normalized = function(value) {
                         return String(value || '').trim().toLowerCase();
@@ -74,7 +101,15 @@ class Ali_AI_Helper {
                     });
 
                     const wanted = [];
-                    if (Array.isArray(data.category_paths)) {
+                    if (Array.isArray(data.category_ids)) {
+                        data.category_ids.forEach(function(termId) {
+                            const clean = String(termId || '').replace(/\D+/g, '');
+                            if (clean) {
+                                wanted.push(clean);
+                            }
+                        });
+                    }
+                    if (wanted.length === 0 && Array.isArray(data.category_paths)) {
                         data.category_paths.forEach(function(path) {
                             const key = normalized(path);
                             if (key && pathMap[key]) {
@@ -215,7 +250,8 @@ class Ali_AI_Helper {
                         review_number: $('#review_number').val() || '',
                         order_number: $('#order_number').val() || '',
                         description: getEditorContent(),
-                        attributes: extractAttributes()
+                        attributes: extractAttributes(),
+                        store_categories: collectStoreCategories()
                     };
 
                     $allBtns.prop('disabled', true);
@@ -304,10 +340,12 @@ class Ali_AI_Helper {
             'order_number' => sanitize_text_field(wp_unslash($_POST['order_number'] ?? '')),
             'attributes' => $attributes,
             'description_preview' => wp_kses_post(wp_unslash($_POST['description'] ?? '')),
+            'store_categories' => $this->sanitize_store_categories($_POST['store_categories'] ?? []),
         ];
 
         $mode = sanitize_key(wp_unslash($_POST['mode'] ?? ''));
-        $response = $this->improve_product($product_data, ['categories' => $this->get_categories_hierarchical()], $mode);
+        $categories_from_form = !empty($product_data['store_categories']) ? $product_data['store_categories'] : $this->get_categories_hierarchical();
+        $response = $this->improve_product($product_data, ['categories' => $categories_from_form], $mode);
         if (is_wp_error($response)) {
             wp_send_json_error($response->get_error_message());
         }
@@ -724,6 +762,7 @@ Opis ma być czysto informacyjny i SEO.";
                 'main_category' => $parsed['main_category'],
                 'sub_category' => $parsed['sub_category'],
                 'category_paths' => $parsed['category_paths'],
+                'category_ids' => $parsed['category_ids'] ?? [],
             ];
         }
 
@@ -752,6 +791,8 @@ Opis ma być czysto informacyjny i SEO.";
         $main_category = '';
         $sub_category = '';
         $category = '';
+        $category_ids = [];
+
 
         foreach (explode("\n", (string) $ai_response) as $line) {
             $line = trim((string) $line);
@@ -772,6 +813,16 @@ Opis ma być czysto informacyjny i SEO.";
             }
             if (preg_match('/ŚCIEŻKA\s*:\s*(.+)/iu', $line, $m)) {
                 $category = sanitize_text_field(trim((string) $m[1]));
+                continue;
+            }
+            if (preg_match('/\bID\s*:\s*([0-9,\s]+)/iu', $line, $m)) {
+                $ids = preg_split('/[^0-9]+/', (string) $m[1]);
+                foreach ($ids as $id) {
+                    $id = absint($id);
+                    if ($id > 0) {
+                        $category_ids[] = $id;
+                    }
+                }
                 continue;
             }
 
@@ -795,12 +846,16 @@ Opis ma być czysto informacyjny i SEO.";
         }
 
         $category_paths = $this->resolve_category_paths($main_category, $sub_category, $category);
+        if (empty($category_ids) && !empty($category_paths)) {
+            $category_ids = $this->resolve_category_ids_from_paths($category_paths);
+        }
 
         return [
             'category' => $category,
             'main_category' => $main_category,
             'sub_category' => $sub_category,
             'category_paths' => $category_paths,
+            'category_ids' => array_values(array_unique(array_filter(array_map('absint', $category_ids)))),
         ];
     }
 
@@ -843,6 +898,67 @@ Opis ma być czysto informacyjny i SEO.";
         }
 
         return $result;
+    }
+
+
+    private function sanitize_store_categories($store_categories_input) {
+        $result = [];
+        if (!is_array($store_categories_input)) {
+            return $result;
+        }
+
+        foreach (wp_unslash($store_categories_input) as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $id = absint($row['id'] ?? 0);
+            $path = sanitize_text_field((string) ($row['path'] ?? ''));
+            if ($id > 0 && $path !== '') {
+                $result[] = $id . ' | ' . $path;
+            }
+        }
+
+        return array_values(array_unique($result));
+    }
+
+    private function resolve_category_ids_from_paths($paths) {
+        $ids = [];
+        if (empty($paths) || !is_array($paths)) {
+            return $ids;
+        }
+
+        $categories = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+        ]);
+
+        if (is_wp_error($categories) || empty($categories)) {
+            return $ids;
+        }
+
+        $normalize = static function ($value) {
+            return mb_strtolower(trim((string) $value));
+        };
+
+        $wanted = array_map($normalize, $paths);
+        foreach ($categories as $cat) {
+            $path = $cat->name;
+            $parent = $cat->parent;
+            while ($parent) {
+                $parent_term = get_term($parent, 'product_cat');
+                if (!$parent_term || is_wp_error($parent_term)) {
+                    break;
+                }
+                $path = $parent_term->name . ' → ' . $path;
+                $parent = $parent_term->parent;
+            }
+
+            if (in_array($normalize($path), $wanted, true)) {
+                $ids[] = (int) $cat->term_id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
     }
 
     private function parse_ai_response($ai_response, $original_data) {
