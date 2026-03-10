@@ -87,17 +87,33 @@ class Ali_AI_Helper {
                         return String(value || '').trim().toLowerCase();
                     };
                     const pathMap = {};
+                    const availableIds = {};
 
                     $('.categorychecklist input[type="checkbox"]').each(function() {
                         const checkbox = this;
-                        const idMatch = checkbox.id ? checkbox.id.match(/in-product_cat-(\d+)/) : null;
+                        const idMatch = checkbox.id ? checkbox.id.match(/product_cat-(\d+)/) : null;
                         if (!idMatch) {
                             return;
                         }
                         const termId = idMatch[1];
-                        const path = $(checkbox).closest('li').find('> label').text().replace(/\s+/g, ' ').trim();
-                        if (path) {
-                            pathMap[normalized(path)] = termId;
+                        availableIds[termId] = true;
+
+                        const names = [];
+                        $(checkbox).closest('li').parents('li').get().reverse().forEach(function(parentLi) {
+                            const parentLabel = $(parentLi).find('> label').first().text().replace(/\s+/g, ' ').trim();
+                            if (parentLabel) {
+                                names.push(parentLabel);
+                            }
+                        });
+                        const ownLabel = $(checkbox).closest('li').find('> label').first().text().replace(/\s+/g, ' ').trim();
+                        if (ownLabel) {
+                            names.push(ownLabel);
+                            pathMap[normalized(ownLabel)] = termId;
+                        }
+
+                        const fullPath = names.join(' → ');
+                        if (fullPath) {
+                            pathMap[normalized(fullPath)] = termId;
                         }
                     });
 
@@ -105,11 +121,12 @@ class Ali_AI_Helper {
                     if (Array.isArray(data.category_ids)) {
                         data.category_ids.forEach(function(termId) {
                             const clean = String(termId || '').replace(/\D+/g, '');
-                            if (clean) {
+                            if (clean && availableIds[clean]) {
                                 wanted.push(clean);
                             }
                         });
                     }
+
                     if (wanted.length === 0 && Array.isArray(data.category_paths)) {
                         data.category_paths.forEach(function(path) {
                             const key = normalized(path);
@@ -133,23 +150,17 @@ class Ali_AI_Helper {
 
                         fallbackNames.forEach(function(name){
                             const target = normalized(name);
-                            $('.categorychecklist label').each(function(){
-                                const label = normalized($(this).text());
-                                if (label === target) {
-                                    const checkbox = $(this).find('input[type="checkbox"]');
-                                    const idMatch = checkbox.attr('id') ? checkbox.attr('id').match(/in-product_cat-(\d+)/) : null;
-                                    if (idMatch) {
-                                        wanted.push(idMatch[1]);
-                                    }
-                                }
-                            });
+                            if (pathMap[target]) {
+                                wanted.push(pathMap[target]);
+                            }
                         });
                     }
 
-                    if (wanted.length > 0) {
+                    const finalIds = Array.from(new Set(wanted.map(function(id){ return String(id); }).filter(function(id){ return !!availableIds[id]; })));
+                    if (finalIds.length > 0) {
                         $('input[name="tax_input[product_cat][]"]').prop('checked', false);
-                        wanted.forEach(function(termId) {
-                            $('#in-product_cat-' + termId).prop('checked', true);
+                        finalIds.forEach(function(termId) {
+                            $('#in-product_cat-' + termId + ', #in-popular-product_cat-' + termId).prop('checked', true);
                         });
                     }
                 }
